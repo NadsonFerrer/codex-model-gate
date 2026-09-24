@@ -1,0 +1,38 @@
+# Byte-compiled files and Python environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# PyInstaller output and local build tools
+/build/
+/dist/
+/.build-artifacts/
+/.build-tools/
+
+# Locally generated executables and user data
+/Release/
+/Output/
+/projeto/
+/registro/
+/Skills-Codex/
+/.codex-model-gate/
+
+# Local development notes and previous draft of the public README
+/MEMORIA-DO-PROGRAMA.txt
+/MEMORIA-HISTORICA-CODEX-MODEL-GATE.md
+/Dossie_Codex_Model_Gate.md
+/README-ANTES-GITHUB.md
+
+# User-specific images present in the working folder
+/homem-sala-meia-luz-tv-desligada.png
+/homem-sala-tv-desligada.png
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Model Gate</title>
+  <desc id="desc">Um portão luminoso que organiza modelos e tarefas.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172554"/>
+      <stop offset="1" stop-color="#07111f"/>
+    </linearGradient>
+    <linearGradient id="gate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#background)"/>
+  <path d="M63 194V111c0-40 29-68 65-68s65 28 65 68v83" fill="none" stroke="url(#gate)" stroke-linecap="round" stroke-width="19" filter="url(#glow)"/>
+  <path d="M63 194h130" fill="none" stroke="#bbf7d0" stroke-linecap="round" stroke-width="15"/>
+  <circle cx="84" cy="82" r="10" fill="#e0f2fe"/>
+  <circle cx="128" cy="57" r="10" fill="#e0f2fe"/>
+  <circle cx="172" cy="82" r="10" fill="#e0f2fe"/>
+  <path d="M84 82 128 57l44 25" fill="none" stroke="#7dd3fc" stroke-linecap="round" stroke-width="6"/>
+  <circle cx="128" cy="137" r="20" fill="#0f172a" stroke="#ecfeff" stroke-width="5"/>
+  <path d="M118 137h20M128 127v20" stroke="#5eead4" stroke-linecap="round" stroke-width="5"/>
+</svg>

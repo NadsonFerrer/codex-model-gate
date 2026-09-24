@@ -1,0 +1,6 @@
+Codex Model Gate installed edition marker.
+
+This file is deliberately copied only by CodexModelGate.iss into the installed
+application directory.  It must never be placed beside CodexModelGate-Pendrive.exe:
+the application uses its presence to distinguish a custom installed directory from
+a portable copy.

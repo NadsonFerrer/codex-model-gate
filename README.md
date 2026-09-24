@@ -29,7 +29,7 @@ A autorização permanece com a pessoa usuária. A análise do Gate é uma recom
 
 ## Baixar e executar
 
-Os pacotes compilados devem ser publicados na seção [Releases](../../releases) do GitHub. Para a versão 2.6.20, o processo de compilação gera:
+Baixe a versão atual na seção [Releases](../../releases). Para a versão 2.6.20, estão disponíveis:
 
 - `CodexModelGate-Setup.exe`: instalação por usuário, com atalhos e desinstalador.
 - `CodexModelGate-Pendrive.exe`: versão portátil.
@@ -77,7 +77,7 @@ O Codex trabalha na pasta da tarefa autorizada. Revise a pasta e os anexos antes
 
 ## Licença
 
-Este repositório ainda não contém um arquivo `LICENSE`. A visibilidade pública do código, por si só, não concede uma licença de reutilização. A licença precisa ser escolhida e adicionada antes de anunciar o projeto como software de código aberto ou aceitar contribuições externas.
+O Codex Model Gate é distribuído sob a licença [MIT](LICENSE). Os avisos de direitos autorais e da licença devem ser mantidos nas cópias e redistribuições.
 
 ## Documentação adicional
 

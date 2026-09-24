@@ -1,0 +1,52 @@
+name: Build and publish Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pyinstaller -r requirements.txt
+
+      - name: Build installer and portable executable
+        run: .\build_windows.ps1 -SkipDependencyInstall -InnoSetupCompiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+        shell: powershell
+
+      - name: Generate SHA-256 checksums
+        shell: powershell
+        run: |
+          Get-ChildItem Release -Filter *.exe |
+            Sort-Object Name |
+            ForEach-Object {
+              $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } | Set-Content -LiteralPath Release\SHA256SUMS.txt -Encoding ascii
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Codex Model Gate ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          files: |
+            Release/CodexModelGate-Setup.exe
+            Release/CodexModelGate-Pendrive.exe
+            Release/LEIA-ME-PORTATIL.md
+            Release/SHA256SUMS.txt
