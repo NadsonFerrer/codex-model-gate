@@ -106,7 +106,10 @@ def remap_paths(value, mappings: dict[str, str]):
     if isinstance(value, list):
         return [remap_paths(v, mappings) for v in value]
     if isinstance(value, str):
-        folded = value.replace('\\', '/').rstrip('/')
+        # Windows may spell the same absolute path with an 8.3 alias.
+        candidate = Path(value)
+        normalized = str(candidate.resolve()) if candidate.is_absolute() else value
+        folded = normalized.replace('\\', '/').rstrip('/')
         for old, new in sorted(mappings.items(), key=lambda pair: -len(pair[0])):
             prefix = old.replace('\\', '/').rstrip('/')
             if folded.casefold() == prefix.casefold():

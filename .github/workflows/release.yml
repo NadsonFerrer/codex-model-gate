@@ -5,7 +5,10 @@ on:
     branches:
       - main
     paths:
-      - gate_models.py
+      - "gate_*.py"
+      - "codex_model_gate*.py"
+      - "tests/**"
+      - ".github/workflows/release.yml"
     tags:
       - "v*"
 

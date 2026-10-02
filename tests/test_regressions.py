@@ -25,7 +25,7 @@ class RegressionTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        self.root = Path(self.tmp.name).resolve()
         self.data = self.root / 'dados'
         self.data.mkdir()
         self.mock = patch.object(gate, 'app_data_dir', return_value=self.data)
