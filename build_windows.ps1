@@ -126,7 +126,7 @@ if ($pythonBits -ne "64") {
 # Python is required only on the developer build machine, never on the recipient's computer.
 Invoke-Python -Arguments @("-c", "import tkinter as tk; tk.Tcl(); print('Tcl/Tk validado')") | Write-Host
 if (-not $SkipDependencyInstall) {
-  Invoke-Python -Arguments @("-m", "pip", "install", "--upgrade", "pyinstaller", "-r", (Join-Path $ProjectRoot "requirements.txt")) | Write-Host
+  Invoke-Python -Arguments @("-m", "pip", "install", "-r", (Join-Path $ProjectRoot "requirements-build.txt"), "-r", (Join-Path $ProjectRoot "requirements.txt")) | Write-Host
 }
 
 # Generate both ICO resources locally from the versioned design assets.  No external
@@ -140,28 +140,17 @@ foreach ($icon in @($AppIcon, $SetupIcon)) {
 
 New-Item -ItemType Directory -Force -Path $ReleaseDir, $StagingRoot, $PyInstallerDist, $PyInstallerWork | Out-Null
 
-# Only the two known release products and the portable readme are replaced.  Files a
-# developer may keep in Release are not removed by this script.
-foreach ($artifact in @($PortableExe, $SetupExe, $PortableReadme)) {
-  if (Test-Path -LiteralPath $artifact) {
-    Remove-Item -LiteralPath $artifact -Force
-  }
+Push-Location $ProjectRoot
+try {
+  Invoke-Python -Arguments @("-m", "unittest", "discover", "-s", "tests", "-v") | Write-Host
+  $GateVersion = (Invoke-Python -Arguments @("-c", "from gate_models import APP_VERSION; print(APP_VERSION)")).Trim()
+  Invoke-Python -Arguments @(
+    "-m", "PyInstaller", "--noconfirm", "--clean", "--log-level", "WARN",
+    "--distpath", $PyInstallerDist, "--workpath", $PyInstallerWork,
+    (Join-Path $ProjectRoot "CodexModelGate.spec")
+  ) | Write-Host
 }
-
-Invoke-Python -Arguments @(
-  "-m", "PyInstaller",
-  "--noconfirm", "--clean", "--log-level", "WARN", "--onefile", "--windowed",
-  "--name", "CodexModelGate",
-  "--icon", $AppIcon,
-  "--collect-all", "pypdf",
-  "--collect-all", "pdfplumber",
-  "--collect-all", "reportlab",
-  "--collect-all", "playwright",
-  "--distpath", $PyInstallerDist,
-  "--workpath", $PyInstallerWork,
-  "--specpath", $StagingRoot,
-  (Join-Path $ProjectRoot "codex_model_gate_gui.py")
-) | Write-Host
+finally { Pop-Location }
 
 $PayloadExe = Join-Path $PyInstallerDist "CodexModelGate.exe"
 if (-not (Test-Path -LiteralPath $PayloadExe)) {
@@ -176,7 +165,7 @@ Copy-Item -LiteralPath (Join-Path $ProjectRoot "README-PORTATIL.md") -Destinatio
 $iscc = Resolve-InnoSetupCompiler -RequestedCompiler $InnoSetupCompiler
 Push-Location $ProjectRoot
 try {
-  & $iscc "/Qp" "CodexModelGate.iss"
+  & $iscc "/Qp" "/DGateVersion=$GateVersion" "CodexModelGate.iss"
   if ($LASTEXITCODE -ne 0) {
     throw "O Inno Setup não conseguiu gerar o instalador Windows."
   }
@@ -191,6 +180,10 @@ foreach ($artifact in @($SetupExe, $PortableExe, $PortableReadme)) {
   }
 }
 
+Invoke-Python -Arguments @("-m", "pip", "freeze") | Set-Content -LiteralPath (Join-Path $ReleaseDir "BUILD-DEPENDENCIES.txt") -Encoding UTF8
+Get-FileHash -Algorithm SHA256 -LiteralPath $PortableExe, $SetupExe | ForEach-Object {
+  "$($_.Hash.ToLowerInvariant())  $(Split-Path -Leaf $_.Path)"
+} | Set-Content -LiteralPath (Join-Path $ReleaseDir "SHA256SUMS.txt") -Encoding ascii
 Write-Host "Entrega criada em ${ReleaseDir}:"
 Write-Host " - CodexModelGate-Setup.exe (instalador Windows com atalhos e desinstalador)"
 Write-Host " - CodexModelGate-Pendrive.exe (executável portátil direto)"

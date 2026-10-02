@@ -22,6 +22,11 @@ from urllib.parse import urlparse
 
 import codex_model_gate as gate
 import gate_i18n
+from gate_models import APP_VERSION, CLI_DOWNLOAD_URL, CLI_CHANGELOG_URL, model_label, model_key, local_catalog, latest_cli_release
+from gate_execution import AuthorizedTask, ProcessSupervisor, prepare_task
+from gate_selection import select_skills_with_ai, attachment_signature
+from gate_storage import atomic_write_text, load_json
+from gate_usage import usage_records
 
 _MESSAGEBOX_FUNCTIONS = {
     name: getattr(messagebox, name) for name in (
@@ -40,8 +45,8 @@ except ImportError:  # The list remains useful even in a minimal installation.
 
 
 CODEX_WINDOWS_INSTALLER = "https://chatgpt.com/codex/install.ps1"
-CODEX_INSTALL_GUIDE_URL = "https://learn.chatgpt.com/docs/codex/cli"
-APP_VERSION = "2.6.20"
+CODEX_INSTALL_GUIDE_URL = CLI_DOWNLOAD_URL
+
 UI_COLORS = {
     "background": "#F2F7FA",
     "surface": "#FFFFFF",
@@ -64,134 +69,8 @@ TASK_TEMPLATES = {
     "Pesquisar referências": "Pesquise referências confiáveis sobre [tema]. Entregue uma síntese objetiva e uma lista de fontes verificáveis em [formato de citação].",
     "Organizar dados": "Organize os dados ou arquivos anexados. Explique os critérios usados, identifique inconsistências e gere [arquivo final desejado].",
 }
-USER_MANUAL = """# Manual do Codex Model Gate
-
-O Codex Model Gate organiza tarefas executadas pelo Codex CLI. Ele ajuda você a preparar a solicitação, conferir modelo e skills recomendadas, autorizar a execução e encontrar os resultados depois.
-
-## Comece por aqui
-
-1. Na aba **Tarefa**, escolha onde os projetos serão guardados.
-2. Escreva o que deseja fazer e, se necessário, use **Anexar arquivos...**.
-3. Clique em **Analisar tarefa**. O Gate recomenda modelo, nível e skills.
-4. Confira a decisão. Você pode ajustar a seleção de skills antes de continuar.
-5. Clique em **Confirmar e executar**. Os arquivos ficam na pasta exclusiva da tarefa.
-6. Ao terminar, confira o resultado, abra os arquivos gerados e registre a qualidade.
-
-Ao usar **Agendar tarefa...**, informe a data e a hora local em `DD/MM/AAAA HH:MM`. O Gate solicita sua confirmação no horário previsto.
-
-### Modo simples e modelos de tarefa
-
-O programa abre no **modo simples**, com os controles essenciais para preparar, analisar e executar uma tarefa. Logo abaixo da descrição, pesquisa e anexos ficam os botões **1. Analisar tarefa** e **2. Confirmar e executar**, seguidos pelo resumo de modelo, nível, risco e skills. A biblioteca detalhada e o acompanhamento ficam mais abaixo. Use `Ctrl+Enter` para analisar e `Ctrl+Shift+Enter` para executar. Marque **Mostrar opções avançadas** quando quiser escolher política, modelo, nível, biblioteca de skills ou consultar os detalhes técnicos da execução.
-
-Os botões mostram o andamento pelas cores da própria interface: **Analisar tarefa** fica azul quando há uma descrição pronta; após a análise, fica verde com uma marca de conclusão, e **Confirmar e executar** fica azul. Quando a execução é acionada, o segundo botão também fica verde. Se você alterar a descrição ou os anexos, a indicação volta ao estado de preparação; analise novamente antes de executar.
-
-Ao selecionar **Confirmar e executar**, o diálogo de autorização abre sobre a janela principal. A consulta de versão do Codex CLI ocorre em segundo plano, sem abrir uma janela adicional.
-
-Em **Começar com um modelo**, escolha um ponto de partida para criar documento, analisar arquivo, gerar imagem, pesquisar referências ou organizar dados. Substitua os campos entre colchetes pelo seu contexto antes de analisar.
-
-## Modelo e nível de raciocínio
-
-O Gate recomenda automaticamente apenas os modelos principais da família GPT-6 conforme a **complexidade da entrega**, e não pela quantidade de palavras do pedido. **Luna — Leve** atende consultas pontuais e transformações delimitadas, como uma data pública ou cotação atual, com fonte apropriada quando necessário. **Sol — Leve** atende conferência explícita de um fato; **Sol — Médio/Alto** atende pesquisa, síntese, criação, julgamento especializado e trabalhos com impacto relevante. **Astra — Médio/Alto** atende entregas amplas com etapas e decisões interdependentes, elevando a revisão quando há alto impacto. A avaliação também mostra risco, uso de ferramentas, especialização, verificabilidade e ambiguidade. Nas opções avançadas, a escolha final de modelo e nível continua com o usuário. Modelos legados ficam em um seletor separado **Modelo legado**, para escolha manual; registros antigos com Terra continuam disponíveis.
-
-O nível **Leve** é para pedidos rápidos; **Médio** equilibra planejamento e velocidade; **Alto** e **Extra alto** servem para trabalho difícil com várias etapas, fontes ou decisões. **Máximo** não é recomendado automaticamente. **Ultra** não é oferecido pela família GPT-6 e não é recomendado automaticamente: escolha níveis disponíveis no modelo selecionado.
-
-Pedidos para explicar como funciona um mecanismo técnico, incluindo downconversion e upconversion, recebem pelo menos **Sol — Médio** em português, inglês ou espanhol. O Gate avalia a explicação que precisa ser entregue, mesmo que a pergunta seja curta.
-
-### Agilidade da interface
-
-Ao concluir uma tarefa, o Gate abre a resposta antes de atualizar os arquivos e o histórico. O painel de consumo reaproveita os registros já carregados; a estimativa de duração usa esses mesmos dados. A versão do Codex CLI verificada na sessão é reutilizada na autorização, e as mensagens de progresso são agrupadas para manter a janela responsiva. Essas medidas reduzem esperas da interface; o tempo de geração da resposta pelo modelo depende da tarefa, do nível escolhido e do Codex CLI.
-
-### Consumo e custo estimado
-
-Após a execução, o Gate mostra os tokens de entrada, entrada em cache, saída e raciocínio informados pelo Codex CLI, além do custo estimado para o modelo selecionado. O valor usa duas casas decimais e a moeda correspondente ao idioma. Se o CLI não enviar os dados de uso, a estimativa aparece como indisponível. A estimativa não é uma cobrança: não inclui tarifas de ferramentas, modalidades especiais, contexto longo, processamento prioritário ou diferenças de câmbio além da taxa de referência do Gate.
-
-Em conversas com várias respostas, o registro mostra tempo e tokens de cada execução separadamente. A aba **Consumo** soma os tokens informados por essas execuções. Registros antigos sem essa separação preservam o total disponível.
-
-Referência de preços padrão em USD por milhão de tokens de texto, para prompts com até 272 mil tokens de entrada: GPT-6 Luna, entrada US$ 0,10, cache US$ 0,01 e saída US$ 0,50; GPT-6 Sol, US$ 2, US$ 0,20 e US$ 10; GPT-6 Astra, US$ 10, US$ 1 e US$ 50. O modelo legado GPT-5.6 Terra permanece disponível para seleção manual e mantém as tarifas cadastradas no Gate: entrada US$ 2, cache US$ 0,20 e saída US$ 12. Os preços podem mudar; consulte a [tabela oficial da OpenAI](https://developers.openai.com/api/docs/pricing).
-
-## Skills
-
-Deixe a seleção automática ativada para o Gate escolher as skills relacionadas à tarefa. Para escolher por conta própria, marque **Usar seleção manual** e pesquise uma skill por parte do nome — não é necessário digitar o nome completo. As skills mostradas em **Skills recomendadas para esta tarefa** são as que serão usadas naquela tarefa; remover uma delas não a exclui da biblioteca.
-
-Na seleção automática, o Gate usa regras explícitas para reconhecer a ação e a entrega pedidas e consultar quais skills dessa finalidade estão disponíveis na biblioteca. Ele pode escolher mais de uma quando cada uma cobre uma parte concreta do resultado. Não há uma análise semântica adicional feita pelo Codex, nem pontuação por palavras parecidas com nomes de skills. Uma consulta sobre a cotação atual do dólar ou a data de uma eleição usa pesquisa em fontes confiáveis; a modificação de um cartão corporativo usa a skill específica de cartões; a busca de artigos científicos usa busca de referências e, quando útil, uma especialidade do tema, como nanofluidos. Se o resultado não for reconhecido com segurança, nenhuma skill de domínio é sugerida; use a seleção manual para escolher a desejada. A skill interna de orquestração organiza a execução das escolhidas.
-
-Perguntas sobre resultados de pesquisas eleitorais, como levantamentos presidenciais de primeiro e segundo turno, também pedem fontes confiáveis. Nesse contexto, “pesquisas” não indica uma especialidade científica; skills de nanofluidos ou outros temas de laboratório não entram na seleção.
-
-Ao instalar uma skill manualmente ou por uma tarefa de criação, o Gate atualiza imediatamente a memória. Ela aparece na biblioteca; para entrar na seleção automática, sua finalidade precisa corresponder a uma rota de resultado reconhecida. Nos demais casos, escolha-a manualmente. Se houver duas versões com o mesmo nome, a versão instalada mais recentemente é usada no catálogo.
-
-Quem cria uma skill pode declarar suas finalidades no campo opcional `gate_outcomes` do `SKILL.md`, usando os códigos de rota documentados no guia do projeto. Esse campo permite que uma skill nova participe de uma rota existente sem comparação por palavras parecidas.
-
-## Tarefas anteriores e arquivos
-
-Na aba **Tarefas anteriores**, use a barra **Buscar tarefa** para localizar uma execução pelo pedido, assunto, resposta ou nome de arquivo. A busca acontece enquanto você digita, ignora diferenças entre acentos e maiúsculas e também pode ser acessada com `Ctrl+F`. Use os filtros adicionais quando precisar restringir por data, modelo, status ou skill. Selecione uma tarefa e abra a aba **Arquivos** para ver somente os arquivos dela. Na interface em português, as datas exibidas e o filtro de data aceitam `DD/MM/AAAA` e usam hora local; o arquivo do registro preserva as datas originais para auditoria.
-
-À direita da busca, aparece somente a quantidade de registros exibidos. Consulte os totais de tokens e custos na aba **Consumo**.
-
-As tarefas executadas por esta versão preservam a sessão do Codex. Selecione uma delas e use **Continuar conversa** para pedir ajustes, revisar a entrega ou avançar a análise na mesma sessão e na mesma pasta. Cada nova mensagem é incorporada ao registro da tarefa. Na aba **Tarefas anteriores**, os quatro filtros ficam na mesma linha. A barra de ações mostra **Atualizar registros**, **Continuar conversa** e **Qualificar registro**; **Lista** reúne registros sem avaliação e relatório, **Abrir / exportar** reúne leitura, exportação TXT/PDF e pasta do registro, e **Pacotes .gate** reúne exportação e importação de tarefas. Nenhuma função foi removida. A barra permanece em uma linha e ganha rolagem horizontal quando necessário. A lista de tarefas e **Detalhes do registro selecionado** dividem igualmente a altura disponível; selecione um registro para ler seu conteúdo no painel rolável. Registros antigos que não possuem identificador de sessão continuam disponíveis para leitura, mas não podem recuperar retroativamente um contexto que não foi salvo.
-
-## Links nas respostas
-
-## Consumo
-
-Abra a aba **Consumo** para consultar custo estimado e tokens agregados por hoje, últimos sete dias, mês, ano ou todo o período. Selecione **Personalizado** para informar as datas inicial e final em `DD/MM/AAAA`. Filtre por todos os modelos ou por Luna, Terra, Sol e Astra. A tabela identifica o modelo e discrimina tarefas, entrada, cache, saída, raciocínio e custo por hora, dia ou mês, conforme o período. Na interface em português, as datas usam dia/mês/ano, os meses aparecem como `MM/AAAA`, os milhares usam ponto e os valores monetários usam vírgula decimal e duas casas. Os campos em inglês usam datas `AAAA-MM-DD` e vírgula para milhares. Escolha a moeda automática do idioma da interface ou USD, BRL e EUR. Use **Exportar CSV...** para salvar as linhas exibidas e abri-las em uma planilha.
-
-Na tabela **Por intervalo**, títulos e valores ficam centralizados em cada coluna, inclusive modelo, tokens e custo estimado.
-
-O aviso junto ao resumo informa que o total é estimado, não uma cobrança da conta. O painel agrega registros locais com tokens e modelo identificável; exibe quantos registros há no período, quantos entraram nos totais e quantos foram excluídos por dados ausentes. Os custos usam os preços e o câmbio de referência cadastrados no Gate, têm duas casas decimais e podem ser recalculados com tarifas atuais: os registros guardam o modelo e os tokens, não uma fatura nem o preço vigente na data da execução.
-
-## Links nas respostas
-
-Endereços de páginas exibidos na resposta aparecem como hiperlinks azuis e sublinhados. Clique em um deles para abrir a página no navegador padrão do Windows. O recurso reconhece links escritos por extenso e links com título em Markdown, sempre limitados a endereços `http` ou `https` válidos.
-
-## Pesquisa web controlada
-
-Quando a pergunta envolve datas públicas, pesquisas eleitorais ou a skill de fontes confiáveis, o Gate disponibiliza a pesquisa web ao vivo do Codex. A tarefa começa diretamente no Codex, que pode consultar fontes atuais e citar os links usados. Confira as datas e os números na fonte original antes de utilizá-los.
-
-Explicações de mecanismos técnicos também recebem pesquisa web ao vivo. Em todas as tarefas, o Gate instrui o Codex a conferir na página original se cada link citado sustenta diretamente a afirmação e a usar uma seção específica quando possível. Essa regra é automática. A conferência depende do acesso à página durante a execução; se não puder ser feita, o Codex deve declarar a limitação em vez de inventar a referência.
-
-Marque **Permitir navegador visual do Gate (Edge)** para disponibilizar ao Codex um navegador visível e isolado. Marcar a caixa não inicia uma busca: a tarefa começa no Codex, e o Edge só abre se ele escolher usar a ferramenta. A sessão não reutiliza automaticamente seus logins ou histórico pessoal. Sem a caixa marcada, **Termos para busca no Edge (opcional)** fica desativado e não influencia a tarefa.
-
-Esse campo aceita **palavras para pesquisa**, por exemplo `calendário eleições México 2027`. Elas são uma sugestão ao Codex, não um comando: ele pode pesquisar outros termos ou não usar o Edge. Se o campo ficar vazio, a descrição da tarefa é enviada como sugestão de consulta. Quando o navegador visual é usado, ele pesquisa no Google e no Bing; uma página só pode ser aberta nesse navegador se aparecer entre os resultados da pesquisa. Colar `https://exemplo.com/artigo` nesse campo faz da URL um termo de busca, **não abre a página diretamente**. Para pedir a análise de um link específico, escreva na descrição principal da tarefa, por exemplo: `Leia e resuma https://exemplo.com/artigo`. O Codex poderá tentar acessar a página com as ferramentas disponíveis e deve informar se não conseguir. Consultas pontuais sobre datas de eleições ou competições esportivas recebem Luna — Leve e acesso à busca web ao vivo; exigências de comparação ou análise elevam o nível pela complexidade da entrega.
-
-Quando habilitado, o navegador visual é oferecido ao Codex por ferramentas MCP locais do Gate. A busca web ao vivo do Codex funciona independentemente dessa opção.
-
-## Tela de resposta
-
-Ao concluir uma tarefa, o Gate abre automaticamente a aba **Resposta**, inclusive no modo simples. O painel técnico continua restrito às opções avançadas, mas nunca mais será necessário ativá-lo para ler a resposta final.
-
-Na versão 2.3.0, use **Enviar arquivo à conversa...** para acrescentar contexto a uma tarefa já concluída ou pendente. **Remover arquivo da conversa...** o desanexa das próximas mensagens, mas preserva a cópia e seu histórico para auditoria.
-
-## Backup e dados
-
-Use **Fazer backup...** na aba Tarefa para guardar projetos, skills, registros e configurações em um arquivo ZIP. Os novos backups usam uma estrutura interna compacta para evitar o erro de caminho longo do Windows. O arquivo `backup-manifest.json`, dentro do ZIP, relaciona cada item ao seu caminho original.
-
-### Backup completo ZIP e pacote de tarefa `.gate`
-
-O **backup completo ZIP** e o **pacote `.gate`** têm finalidades diferentes. O ZIP criado em **Fazer backup...** reúne os dados do Gate: projetos, biblioteca de skills, registros e configurações. Use-o para uma cópia geral ou para migrar esses dados para outro computador. Para restaurar, abra **Restaurar backup...**, selecione o ZIP e confira a prévia de arquivos e categorias. Escolha **Sim** para substituir arquivos que coincidam com os do backup; **Não** para preservar os atuais e restaurar os itens com nomes alternativos; **Cancelar** para interromper. Arquivos fora do backup nunca são removidos. Restaurar configurações de outro computador pode exigir reiniciar o Gate.
-
-O pacote **`.gate`** contém somente uma tarefa selecionada: seu registro e os arquivos da pasta de trabalho, como anexos e resultados. Não inclui a biblioteca inteira, configurações nem outros projetos ou registros. Na aba **Tarefas anteriores**, selecione a tarefa e clique em **Exportar tarefa como pacote...**. Na outra instalação, use **Importar pacote `.gate`...**. O Gate restaura os arquivos em uma pasta exclusiva e cria um registro local. Depois, analise a tarefa importada para iniciar uma nova conversa com esse contexto. O pacote não transfere a sessão autenticada nem o identificador da conversa original; portanto, não retoma a sessão anterior. Também serve como cópia portátil isolada de uma tarefa.
-
-Para migrar para outro computador, instale o Gate, abra-o e clique em **Restaurar backup...**. Escolha o ZIP levado do computador anterior. Se o outro computador ainda não tiver dados, escolha **Sim** para repor os itens normalmente. Se já houver dados que você quer preservar, escolha **Não**: o Gate mantém os arquivos atuais e adiciona os restaurados com um sufixo de restauração.
-
-Os dados do programa ficam em uma pasta própria do Gate. **Abrir dados do Gate** mostra essa pasta no Explorador de Arquivos. A atualização normal do programa preserva esses dados.
-
-## Codex CLI
-
-O Gate precisa do Codex CLI instalado e autenticado para executar tarefas. A área **Codex CLI** informa o estado e oferece instruções de instalação. O Gate procura o executável tanto no PATH quanto na instalação do aplicativo Codex no Windows. Você ainda pode analisar e organizar uma tarefa sem o CLI, mas não poderá executá-la. **Decisão pronta** significa que a análise terminou e a execução ainda precisa ser autorizada; não significa que o modelo respondeu. Depois de **2. Confirmar e executar**, acompanhe a fase **Codex iniciado** e abra a aba **Resposta** ao concluir. Se o CLI não for localizado, a tarefa não inicia e a tela mostra o motivo.
-
-Se houver falha na preparação ou na interface, o Gate mostra o erro em vez de deixar a tarefa esperando indefinidamente. Para diagnóstico, abra a pasta da tarefa e consulte `.codex-model-gate/startup-status.txt`; falhas de interface também são registradas em `gui-error.txt`. Uma pasta criada ou a mensagem de autorização, por si só, não comprovam que o Codex começou a executar.
-
-Na versão 2.6.5, o cronômetro de início e duração foi corrigido. Após autorizar uma tarefa nova ou continuar uma conversa, confira a fase **Codex iniciado** antes de considerar que o processo começou.
-
-O seletor do aplicativo Codex e o Codex CLI podem estar em versões diferentes. GPT-6 Sol e Luna entraram no catálogo do CLI 0.156.1. Se o Gate encontrar um CLI anterior, ele informa a versão e impede iniciar uma tarefa com Sol ou Luna até a atualização. Use **Atualizar Codex CLI...** para abrir o instalador oficial no PowerShell e depois clique em **Verificar novamente**. Uma recusa do CLI não prova que o modelo está indisponível na sua conta; a recomendação original do Gate é preservada. Se um CLI atualizado ainda recusar um modelo, confira a autenticação, a disponibilidade nesse cliente e a mensagem de erro. O Gate registra a falha e não troca automaticamente o modelo autorizado.
-
-## Dicas
-
-- Escreva um resultado desejado claro: por exemplo, “crie um relatório PDF com estas seções”.
-- Confira anexos, skills e pasta de destino antes de autorizar.
-- Se o Codex fizer uma pergunta, use **Responder pergunta pendente** para manter a mesma tarefa e o mesmo contexto.
-- O Gate não apaga arquivos produzidos ao cancelar uma execução; abra a pasta da tarefa para conferir o que já foi criado.
-"""
+from gate_manuals import MANUALS
+USER_MANUAL = MANUALS['pt-BR']
 
 
 def hidden_windows_process_options() -> dict:
@@ -209,6 +88,10 @@ def hidden_windows_process_options() -> dict:
 
 def add_vertical_scrollbar(container, widget):
     """Attach a standard Windows scrollbar, including its arrow buttons."""
+    if isinstance(widget, ttk.Treeview):
+        horizontal = ttk.Scrollbar(container, orient='horizontal', command=widget.xview)
+        widget.configure(xscrollcommand=horizontal.set)
+        horizontal.pack(side='bottom', fill='x')
     scrollbar = ttk.Scrollbar(container, orient="vertical", command=widget.yview)
     widget.configure(yscrollcommand=scrollbar.set)
     scrollbar.pack(side="right", fill="y")
@@ -243,7 +126,7 @@ class GateApp(tk.Tk):
         self.install_localized_dialogs()
         self.title(self.tr("Codex Model Gate — Decisão Confiável de IA") +
                    f" v{APP_VERSION}")
-        self.geometry("940x900")
+        self.geometry(f"{min(1040, self.winfo_screenwidth()-80)}x{min(900, self.winfo_screenheight()-100)}")
         self.minsize(620, 500)
         self.projects_root = gate.projects_dir()
         self.cwd = self.projects_root
@@ -268,6 +151,7 @@ class GateApp(tk.Tk):
         self.record_cache = None
         self.cli_executable = None
         self.cli_version = None
+        self.cli_signature = None
         self.record_artifact_items = []
         self.files_context_var = tk.StringVar(
             value="Selecione uma tarefa na aba “Tarefas anteriores” para ver seus arquivos.")
@@ -279,15 +163,24 @@ class GateApp(tk.Tk):
         self.usage_period_var = tk.StringVar(value="Este mês")
         self.usage_currency_var = tk.StringVar(value="Automática")
         self.usage_model_var = tk.StringVar(value="Todos os modelos")
+        self.recalculate_costs_var = tk.BooleanVar(value=False)
         self.usage_summary_var = tk.StringVar(value="Carregando consumo registrado...")
         self.usage_records_var = tk.StringVar(value="")
         self.usage_range_var = tk.StringVar(value="")
         self.usage_excluded_var = tk.StringVar(value="")
         self.usage_custom_error = False
         self.history_search_after_id = None
+        self.auto_open_outputs_var = tk.BooleanVar(value=bool(saved_settings.get("auto_open_outputs",False)))
         self.attachments = []
         self.active_skill_items = []
         self.running = False
+        self.busy_operation = False
+        self.pending_jobs = 0
+        self.exclusive_jobs = 0
+        self.supervisor = ProcessSupervisor()
+        self._history_request = 0
+        self._record_reload = True
+        self._completion_data = None
         self.action_executed = False
         self.selecting_skills = False
         self.cancel_requested = False
@@ -327,13 +220,22 @@ class GateApp(tk.Tk):
             value="Nenhuma biblioteca de skills vinculada.")
         self._build()
         self.localize_interface()
+        from gate_widgets import install_flow_rows
+        install_flow_rows(self)
         self.task.bind("<<Modified>>", self.on_task_modified, add="+")
+        draft = saved_settings.get('draft', {})
+        if isinstance(draft, dict):
+            self.task.insert('1.0', str(draft.get('task') or ''))
+            self.attachments = [Path(p) for p in draft.get('attachments', []) if isinstance(p, str) and Path(p).is_file()]
+            self.refresh_attachments()
+            if draft.get('root'):
+                self.path_var.set(str(draft['root']))
         self.task.edit_modified(False)
         self.update_action_buttons()
         self.apply_ui_mode()
-        self.refresh_skills()
-        self.load_history()
-        self.after(100, self.refresh_codex_cli_status)
+        self.after(100, self.refresh_skills)
+        self.after(150, self.load_history)
+        self.after(50, self.refresh_codex_cli_status)
         self.refresh_portable_storage_status()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(100, self.poll_events)
@@ -463,6 +365,12 @@ class GateApp(tk.Tk):
         add_vertical_scrollbar(response_holder, self.response_text)
         response_controls = ttk.Frame(self.response_tab)
         response_controls.pack(fill="x", pady=(8, 0))
+        response_tools = ttk.Frame(self.response_tab)
+        response_tools.pack(fill='x', pady=4)
+        ttk.Button(response_tools, text='Copiar resposta', command=self.copy_response).pack(side='left')
+        ttk.Button(response_tools, text='Exportar resposta...', command=self.export_response).pack(side='left', padx=6)
+        ttk.Button(response_tools, text='Abrir pasta da tarefa', command=self.open_current_task_folder).pack(side='left')
+        ttk.Button(response_tools, text='Abrir diagnóstico', command=self.open_diagnostics).pack(side='left', padx=6)
         ttk.Button(response_controls, text="Abrir leitura em tela cheia",
                    command=self.abrir_leitor_focado).pack(side="left")
         ttk.Button(response_controls, text="Enviar arquivo à conversa...",
@@ -522,8 +430,17 @@ class GateApp(tk.Tk):
         cli_box.pack(fill="x", pady=(0, 10))
         ttk.Label(cli_box, textvariable=self.cli_status_var, wraplength=850).pack(
             anchor="w")
+        cli_links = ttk.Frame(cli_box)
+        cli_links.pack(fill='x', pady=(5, 0))
+        self.cli_download_button = ttk.Button(cli_links, text='Download / atualização oficial', command=self.open_codex_install_guide)
+        self.cli_download_button.pack(side='left')
+        self.cli_check_button = ttk.Button(cli_links, text='Verificar novamente', command=self.refresh_codex_cli_status)
+        self.cli_check_button.pack(side='left', padx=6)
+        self.cli_release_button = ttk.Button(cli_links, text='Consultar novas versões', command=self.check_cli_updates)
+        self.cli_release_button.pack(side='left')
         self.cli_controls = ttk.Frame(cli_box)
         self.cli_controls.pack(anchor="w", pady=(6, 0))
+        ttk.Checkbutton(cli_box, text="Abrir até 3 arquivos após validação", variable=self.auto_open_outputs_var, command=lambda:gate.save_app_settings({"auto_open_outputs":self.auto_open_outputs_var.get()})).pack(anchor="w",pady=(4,0))
         self.install_cli_button = ttk.Button(
             self.cli_controls, text="Instalar Codex CLI...", command=self.install_codex_cli)
         self.install_cli_button.pack(side="left")
@@ -628,14 +545,16 @@ class GateApp(tk.Tk):
         self.open_attachment_button = ttk.Button(
             attachment_controls, text="Abrir anexo", command=self.open_attachment)
         self.open_attachment_button.pack(side="left")
-        skills_header = ttk.Frame(self.work_tab)
+        self.skills_browser = ttk.Frame(self.work_tab)
+        self.skills_browser.pack(fill='x')
+        skills_header = ttk.Frame(self.skills_browser)
         skills_header.pack(fill="x")
         ttk.Label(skills_header, text="Conhecimentos especializados (skills):").pack(side="left")
         self.manual_skills_toggle = ttk.Checkbutton(
             skills_header, text="Usar seleção manual (desmarcado: Gate escolhe automaticamente)", variable=self.manual_skills_var)
         self.manual_skills_toggle.pack(side="left", padx=(8, 0))
-        ttk.Label(self.work_tab, text="Automático é recomendado: o Gate explica abaixo por que cada instrução especializada foi escolhida. Use a seleção manual apenas quando quiser substituir a recomendação.", style="Hint.TLabel", wraplength=860).pack(anchor="w", pady=(2, 4))
-        skill_search_row = ttk.Frame(self.work_tab)
+        ttk.Label(self.skills_browser, text="Automático é recomendado: o Gate explica abaixo por que cada instrução especializada foi escolhida. Use a seleção manual apenas quando quiser substituir a recomendação.", style="Hint.TLabel", wraplength=860).pack(anchor="w", pady=(2, 4))
+        skill_search_row = ttk.Frame(self.skills_browser)
         skill_search_row.pack(fill="x", pady=(0, 2))
         ttk.Label(skill_search_row, text="Pesquisar skill por nome:").pack(side="left")
         self.skill_search_entry = ttk.Entry(
@@ -646,7 +565,7 @@ class GateApp(tk.Tk):
         self.clear_skill_search_button.pack(side="left", padx=(8, 0))
         ttk.Label(skill_search_row, textvariable=self.skill_search_status,
                   style="Hint.TLabel").pack(side="left", padx=(10, 0))
-        skill_list_holder = ttk.Frame(self.work_tab)
+        skill_list_holder = ttk.Frame(self.skills_browser)
         skill_list_holder.pack(fill="x", pady=(2, 8))
         self.skill_list = tk.Listbox(
             skill_list_holder, selectmode="multiple", height=5, exportselection=False)
@@ -655,6 +574,7 @@ class GateApp(tk.Tk):
         active_box = ttk.LabelFrame(
             self.work_tab, text="Skills recomendadas para esta tarefa", padding=6)
         active_box.pack(fill="x", pady=(0, 8))
+        self.active_skills_box = active_box
         ttk.Label(active_box, text="Selecione uma skill para conferir as instruções completas. A explicação após o travessão informa a relevância identificada.", style="Hint.TLabel", wraplength=820).pack(anchor="w", pady=(0, 4))
         active_skill_list_holder = ttk.Frame(active_box)
         active_skill_list_holder.pack(fill="x")
@@ -677,52 +597,42 @@ class GateApp(tk.Tk):
             active_controls, text="Remover skill selecionada",
             command=self.remove_selected_skill_from_task)
         self.remove_active_skill_button.pack(side="left", padx=(8, 0))
-        controls = ttk.LabelFrame(
-            self.work_tab, text="Ações principais", padding=8)
-        controls.pack(fill="x", pady=(0, 8))
-        self.refresh_button = ttk.Button(
-            controls, text="Atualizar skills", command=self.refresh_skills)
-        self.recommend_button = ttk.Button(
-            controls, text="1. Analisar tarefa", command=self.recommend,
-            style="Primary.TButton")
-        self.recommend_button.pack(side="left")
-        self.run_button = ttk.Button(
-            controls, text="2. Confirmar e executar", command=self.authorize_run,
-            style="Primary.TButton")
-        self.run_button.pack(side="left", padx=(8, 0))
-        self.schedule_button = ttk.Button(
-            controls, text="Agendar tarefa...", command=self.schedule_current_task)
-        self.schedule_button.pack(side="left", padx=(8, 0))
-        self.continue_pending_button = ttk.Button(
-            controls, text="Responder pergunta pendente",
-            command=self.show_continuation_window, state="disabled",
-            style="SecondaryAction.TButton")
-        self.continue_pending_button.pack(side="left", padx=(8, 0))
-        self.cancel_button = ttk.Button(
-            controls, text="Cancelar execução", command=self.cancel_run,
-            state="disabled", style="SecondaryAction.TButton")
-        self.cancel_button.pack(side="left", padx=(8, 0))
-        ttk.Label(
-            controls,
-            text="Ctrl+Enter: analisar  •  Ctrl+Shift+Enter: executar",
-            style="Hint.TLabel").pack(side="right", padx=(12, 0))
+        controls = ttk.LabelFrame(self, text="Ações principais", padding=8)
+        self.action_bar = controls
+        controls.pack(side='bottom', fill='x', padx=10, pady=(0, 8), before=self.main_notebook)
+        for column in range(3):
+            controls.columnconfigure(column, weight=1)
+        self.refresh_button = ttk.Button(controls, text="Atualizar skills", command=self.refresh_skills)
+        self.recommend_button = ttk.Button(controls, text="1. Analisar tarefa", command=self.recommend, style="Primary.TButton")
+        self.run_button = ttk.Button(controls, text="2. Confirmar e executar", command=self.authorize_run, style="Primary.TButton")
+        self.cancel_button = ttk.Button(controls, text="Cancelar execução", command=self.cancel_run, state='disabled')
+        for column, widget in enumerate((self.recommend_button, self.run_button, self.cancel_button)):
+            widget.grid(row=0, column=column, sticky='ew', padx=3, pady=3)
+        self.schedule_button = ttk.Button(controls, text="Agendar tarefa...", command=self.schedule_current_task)
+        self.continue_pending_button = ttk.Button(controls, text="Responder pergunta pendente", command=self.show_continuation_window, state='disabled')
+        self.schedule_button.grid(row=1, column=0, sticky='ew', padx=3, pady=3)
+        self.continue_pending_button.grid(row=1, column=1, sticky='ew', padx=3, pady=3)
+        ttk.Label(controls, text='Ctrl+Enter / Ctrl+Shift+Enter', style='Hint.TLabel').grid(row=1, column=2, padx=3)
         self.bind("<Control-Return>", self.analyze_from_shortcut, add="+")
         self.bind("<Control-Shift-Return>", self.execute_from_shortcut, add="+")
 
         decision = ttk.LabelFrame(
             self.work_tab, text="Resumo antes de executar", padding=6)
         decision.pack(fill="x", pady=(0, 8))
+        self.decision_box = decision
         cards = ttk.Frame(decision)
+        self.decision_cards = []
         cards.pack(fill="x", pady=(0, 8))
         for index, (title, variable) in enumerate((
-            ("MODELO RECOMENDADO", self.decision_model_card_var),
+            ("MODELO SELECIONADO", self.decision_model_card_var),
             ("NÍVEL", self.decision_effort_card_var),
             ("RISCO", self.decision_risk_card_var),
             ("SKILLS RELEVANTES", self.decision_skills_card_var),
         )):
             card = ttk.LabelFrame(cards, padding=(10, 6), style="Card.TLabelframe")
-            card.grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 6, 0))
-            cards.columnconfigure(index, weight=1)
+            self.decision_cards.append(card)
+            card.grid(row=index // 2, column=index % 2, sticky="nsew", padx=3, pady=3)
+            cards.columnconfigure(index % 2, weight=1)
             ttk.Label(card, text=title, style="CardTitle.TLabel").pack(anchor="w")
             ttk.Label(card, textvariable=variable, style="CardValue.TLabel").pack(anchor="w", pady=(2, 0))
         self.decision_controls_line = ttk.Frame(decision)
@@ -733,21 +643,22 @@ class GateApp(tk.Tk):
         self.policy_box.pack(side="left", padx=(4, 16))
         ttk.Label(self.decision_controls_line, text="Modelo:").pack(side="left")
         self.model_box = ttk.Combobox(self.decision_controls_line, textvariable=self.model_var, values=[
-                                      name.capitalize() for name in gate.PRIMARY_MODELS], state="readonly", width=12)
+                                      model_label(name) for name in gate.PRIMARY_MODELS], state="readonly", width=12)
         self.model_box.pack(side="left", padx=(4, 16))
         self.model_box.bind("<<ComboboxSelected>>", self.on_model_selection_changed)
         ttk.Label(self.decision_controls_line, text="Modelo legado:").pack(side="left")
         self.legacy_model_var = tk.StringVar(value="Selecionar...")
         self.legacy_model_box = ttk.Combobox(self.decision_controls_line,
             textvariable=self.legacy_model_var,
-            values=["Selecionar..."] + [key.capitalize() for key in gate.LEGACY_MODELS],
+            values=["Selecionar..."] + [model_label(key) for key in gate.LEGACY_MODELS],
             state="readonly", width=15)
         self.legacy_model_box.pack(side="left", padx=(4, 16))
         self.legacy_model_box.bind("<<ComboboxSelected>>", self.on_legacy_model_selection_changed)
         ttk.Label(self.decision_controls_line, text="Nível:").pack(side="left")
-        self.effort_box = ttk.Combobox(self.decision_controls_line, textvariable=self.effort_var, values=list(
-            gate.EFFORT_LABELS.values()), state="readonly", width=12)
+        self.effort_box = ttk.Combobox(self.decision_controls_line, textvariable=self.effort_var, values=[gate.EFFORT_LABELS[k] for k in gate.supported_efforts("sol")], state="readonly", width=12)
         self.effort_box.pack(side="left", padx=(4, 0))
+        self.effort_box.bind('<<ComboboxSelected>>', self.sync_decision_settings)
+        self.policy_box.bind('<<ComboboxSelected>>', self.sync_decision_settings)
         self.decision_text = tk.StringVar(
             value="Analise a tarefa para ver justificativa, risco e controles.")
         ttk.Label(decision, textvariable=self.decision_text,
@@ -761,10 +672,8 @@ class GateApp(tk.Tk):
 
         # Keep the complete preparation flow together near the task editor.
         # The skill library and execution monitoring remain below this block.
-        controls.pack_forget()
-        controls.pack(fill="x", pady=(0, 8), after=attachments_box)
         decision.pack_forget()
-        decision.pack(fill="x", pady=(0, 8), after=controls)
+        decision.pack(fill="x", pady=(0, 8), after=attachments_box)
         self.library_box.pack_forget()
         self.library_box.pack(fill="x", pady=(0, 8), after=decision)
 
@@ -856,7 +765,7 @@ class GateApp(tk.Tk):
             "<KeyRelease>", self.schedule_history_search)
         self.history_search_entry.bind(
             "<Return>", lambda _event: self.load_history())
-        ttk.Button(search_bar, text="Buscar", command=self.load_history).pack(
+        ttk.Button(search_bar, text="Buscar", command=lambda: self.load_history(force=False)).pack(
             side="left")
         ttk.Button(search_bar, text="Limpar busca",
                    command=self.clear_history_search).pack(side="left", padx=(6, 0))
@@ -869,34 +778,32 @@ class GateApp(tk.Tk):
         filter_fields = (("Data", "date", 14), ("Modelo", "model", 14),
                          ("Status", "status", 14), ("Skill", "skill", 18))
         for index, (label, key, width) in enumerate(filter_fields):
-            column = index * 2
+            column = (index % 2) * 2
+            filter_row = index // 2
             ttk.Label(filters, text=label + ":").grid(
-                row=0, column=column, sticky="w",
+                row=filter_row, column=column, sticky="w",
                 padx=(0 if index == 0 else 8, 3), pady=2)
             ttk.Entry(filters, textvariable=self.record_filter_vars[key], width=width).grid(
-                row=0, column=column + 1, sticky="ew", pady=2)
+                row=filter_row, column=column + 1, sticky="ew", pady=2)
             filters.columnconfigure(column + 1, weight=1)
         ttk.Button(filters, text="Aplicar filtros", command=self.load_history).grid(
-            row=0, column=8, sticky="w", padx=(10, 0), pady=2)
+            row=2, column=0, sticky="w", padx=(10, 0), pady=2)
         ttk.Button(filters, text="Limpar filtros", command=self.clear_record_filters).grid(
-            row=0, column=9, sticky="w", padx=(8, 0), pady=2)
+            row=2, column=2, sticky="w", padx=(8, 0), pady=2)
         columns = ("quando", "resultado", "qualidade", "modelo", "tarefa")
-        history_body = ttk.Frame(self.history_tab)
+        history_body = ttk.Panedwindow(self.history_tab, orient="vertical")
         history_body.pack(fill="both", expand=True)
-        history_body.columnconfigure(0, weight=1)
-        history_body.rowconfigure(0, weight=1, uniform="history_panels")
-        history_body.rowconfigure(2, weight=1, uniform="history_panels")
         history_holder = ttk.Frame(history_body)
-        history_holder.grid(row=0, column=0, sticky="nsew")
+        history_body.add(history_holder, weight=1)
         self.history = ttk.Treeview(
             history_holder, columns=columns, show="headings", height=1)
         for name, width in (("quando", 135), ("resultado", 100), ("qualidade", 130), ("modelo", 115), ("tarefa", 390)):
             self.history.heading(name, text=name.capitalize())
-            self.history.column(name, width=width, anchor="w")
+            self.history.column(name, width=width, minwidth=width, stretch=False, anchor="w")
         add_vertical_scrollbar(history_holder, self.history)
         self.history.bind("<<TreeviewSelect>>", self.show_selected_record)
-        self.history_controls = ttk.Frame(history_body)
-        self.history_controls.grid(row=1, column=0, sticky="ew", pady=(8, 8))
+        self.history_controls = ttk.Frame(history_holder)
+        self.history_controls.pack(side="bottom", fill="x", pady=8, before=self.history)
         self.history_controls.columnconfigure(0, weight=1)
         self.history_actions_canvas = tk.Canvas(
             self.history_controls, height=42, highlightthickness=0,
@@ -962,7 +869,7 @@ class GateApp(tk.Tk):
         package_button.pack(side="left")
         detail_box = ttk.LabelFrame(
             history_body, text="Detalhes do registro selecionado", padding=6)
-        detail_box.grid(row=2, column=0, sticky="nsew")
+        history_body.add(detail_box, weight=1)
         detail_scroll = ttk.Scrollbar(detail_box, orient="vertical")
         self.record_detail = tk.Text(
             detail_box, height=1, wrap="word", state="disabled", yscrollcommand=detail_scroll.set)
@@ -1024,7 +931,7 @@ class GateApp(tk.Tk):
         ttk.Label(self.usage_tab, text="Consumo de tokens e custos",
                   font=("Segoe UI", 13, "bold")).pack(anchor="w", pady=(2, 4))
         self.usage_estimate_notice = ttk.Label(self.usage_tab,
-                  text="ESTIMATIVA — Não é uma cobrança da sua conta. Usa tokens registrados e as tarifas de referência atuais do Gate; valores passados podem ser recalculados com tarifas atualizadas.",
+                  text="ESTIMATIVA — Não é uma cobrança da sua conta. Usa tokens registrados e tarifas/câmbio salvos em cada turno. Registros antigos usam referências atuais; recalcular é opcional.",
                   style="Hint.TLabel", wraplength=950, justify="left")
         self.usage_estimate_notice.pack(anchor="w", fill="x", pady=(0, 10))
         controls = ttk.LabelFrame(self.usage_tab, text="Período e moeda", padding=8)
@@ -1050,6 +957,8 @@ class GateApp(tk.Tk):
         self.usage_model_box.bind("<<ComboboxSelected>>", lambda _event: self.refresh_usage_dashboard())
         ttk.Button(controls, text="Atualizar", command=self.refresh_usage_dashboard).pack(side="left")
         ttk.Button(controls, text="Exportar CSV...", command=self.export_usage_csv).pack(side="left", padx=(8, 0))
+        ttk.Checkbutton(self.usage_tab, text='Recalcular com tarifas e câmbio atuais',
+            variable=self.recalculate_costs_var, command=self.refresh_usage_dashboard).pack(anchor='w', pady=(0,8))
         self.usage_custom_range = ttk.Frame(self.usage_tab)
         ttk.Label(self.usage_custom_range, text="De (DD/MM/AAAA):").pack(side="left")
         self.usage_start_entry = ttk.Entry(self.usage_custom_range, width=14)
@@ -1083,15 +992,9 @@ class GateApp(tk.Tk):
                   "saida": 110, "raciocinio": 115, "custo": 145}
         for column in columns:
             self.usage_table.heading(column, text=titles[column], anchor="center")
-            self.usage_table.column(column, width=widths[column], anchor="center")
+            self.usage_table.column(column, width=widths[column], minwidth=widths[column], stretch=False, anchor="center")
         add_vertical_scrollbar(holder, self.usage_table)
 
-    def on_usage_period_changed(self, _event=None):
-        if self.tr("Personalizado") == self.usage_period_var.get():
-            self.usage_custom_range.pack(fill="x", pady=(0, 8))
-        else:
-            self.usage_custom_range.pack_forget()
-        self.refresh_usage_dashboard()
 
     def export_usage_csv(self):
         """Export the visible usage breakdown to a spreadsheet-friendly CSV."""
@@ -1118,7 +1021,7 @@ class GateApp(tk.Tk):
             self.usage_table.delete(item)
         records = self.record_cache
         if records is None:
-            records = gate.read_execution_records()
+            records = []
             self.record_cache = records
         period_value = self.usage_period_var.get()
         canonical = next((label for label in ("Hoje", "Últimos 7 dias", "Este mês", "Este ano", "Todo o período", "Personalizado")
@@ -1154,7 +1057,7 @@ class GateApp(tk.Tk):
             {"pt-BR": "BRL", "es": "EUR"}.get(self.language, "USD"))
         model_value = self.usage_model_var.get()
         model_key = next((key for key in gate.MODELS
-                          if self.tr(key.capitalize()) == model_value), None)
+                          if self.tr(model_label(key)) == model_value), None)
         if model_value in {self.tr("Todos os modelos"), "Todos os modelos"}:
             model_key = None
         symbols = {"USD": "US$", "BRL": "R$", "EUR": "€"}
@@ -1163,7 +1066,7 @@ class GateApp(tk.Tk):
         groups = {}
         period_records = eligible = 0
         earliest_day = None
-        for record in records:
+        for record in usage_records(records):
             raw_date = str(record.get("finished_at") or "")
             try:
                 finished = datetime.fromisoformat(raw_date.replace("Z", "+00:00")).astimezone()
@@ -1181,7 +1084,7 @@ class GateApp(tk.Tk):
             if not isinstance(usage, dict) or not record_model or record_model not in gate.MODELS:
                 unknown += 1
                 continue
-            cost = gate.estimate_token_cost(str(record.get("model_key") or ""), usage, currency)
+            cost = gate.estimate_token_cost(str(record.get("model_key") or ""), usage, currency, None if self.recalculate_costs_var.get() else record.get("pricing"), None if self.recalculate_costs_var.get() else record.get("exchange_rates"))
             if cost is None:
                 unknown += 1
                 continue
@@ -1198,7 +1101,7 @@ class GateApp(tk.Tk):
                 group_key = day.strftime("%Y-%m")
             else:
                 group_key = day.isoformat()
-            current = groups.setdefault((group_key, self.tr(record_model.capitalize())), {**{key: 0 for key in aggregate}, "tasks": 0, "cost": 0.0})
+            current = groups.setdefault((group_key, self.tr(model_label(record_model))), {**{key: 0 for key in aggregate}, "tasks": 0, "cost": 0.0})
             current["tasks"] += 1
             for key in aggregate:
                 current[key] += max(0, int(usage.get(key, 0) or 0))
@@ -1238,7 +1141,7 @@ class GateApp(tk.Tk):
         self.usage_currency_box.configure(values=[self.tr(value) for value in
             ("Automática", "USD", "BRL", "EUR")])
         self.usage_model_box.configure(values=[self.tr("Todos os modelos")] + [
-            self.tr(key.capitalize()) for key in (*gate.PRIMARY_MODELS, *gate.LEGACY_MODELS)])
+            self.tr(model_label(key)) for key in gate.MODELS])
         if self.usage_model_var.get() in {"Todos os modelos", "All models", "Todos los modelos"}:
             self.usage_model_var.set(self.tr("Todos os modelos"))
 
@@ -1334,7 +1237,7 @@ class GateApp(tk.Tk):
         self.policy_box.configure(values=[self.tr(value) for value in gate.POLICIES])
         self.policy_var.set(self.tr(self.policy_var.get()))
         self.effort_box.configure(values=[
-            self.tr(value) for value in gate.EFFORT_LABELS.values()])
+            self.tr(gate.EFFORT_LABELS[k]) for k in gate.supported_efforts(model_key(self.model_var.get()) or "sol")])
         for variable in (
                 self.files_context_var, self.record_filter_status,
                 self.decision_model_card_var, self.simple_progress_var,
@@ -1412,6 +1315,10 @@ class GateApp(tk.Tk):
             self._localize_widget(child)
 
     def change_language(self, _event=None):
+        if self.running or self.selecting_skills or self.busy_operation:
+            self.language_var.set(gate_i18n.LANGUAGES[self.language])
+            return messagebox.showinfo('Atividade em andamento', 'Aguarde a atividade terminar antes de alterar o idioma.')
+        self.save_draft()
         selected = self.language_var.get()
         language = next(
             (code for code, name in gate_i18n.LANGUAGES.items() if name == selected),
@@ -1449,27 +1356,26 @@ class GateApp(tk.Tk):
 
     @staticmethod
     def _set_pack_visibility(widget, visible, options):
-        """Show or hide a packed widget without destroying its contents."""
-        if visible and not widget.winfo_manager():
+        if hasattr(widget, '_flow_hidden'):
+            widget._flow_hidden = not visible
+            widget.master._flow_refresh()
+        elif visible and not widget.winfo_manager():
             widget.pack(**options)
         elif not visible and widget.winfo_manager():
             widget.pack_forget()
 
+
     def apply_ui_mode(self):
-        """Keep the common task flow uncluttered while preserving expert controls."""
-        advanced = self.ui_mode_var.get()
-        self._set_pack_visibility(
-            self.cli_controls, advanced, {"anchor": "w", "pady": (6, 0)})
-        self._set_pack_visibility(
-            self.decision_controls_line, advanced, {"fill": "x"})
-        self._set_pack_visibility(
-            self.log_holder, advanced,
-            {"side": "left", "fill": "both", "expand": True})
-        if hasattr(self, "status"):
-            self.status.set(
-                "Modo avançado ativado: você pode ajustar os controles técnicos."
-                if advanced else
-                "Modo simples ativado: mostro apenas o necessário para concluir a tarefa.")
+        advanced = bool(self.ui_mode_var.get())
+        self._set_pack_visibility(self.decision_controls_line, advanced, {'fill': 'x'})
+        self._set_pack_visibility(self.log_holder, advanced, {'side':'left', 'fill':'both', 'expand':True})
+        self._set_pack_visibility(self.library_box, advanced, {'fill':'x', 'pady':(0,8), 'after':self.decision_box})
+        self._set_pack_visibility(self.skills_browser, advanced, {'fill':'x', 'before':self.active_skills_box})
+        # CLI recovery actions stay visible in simple mode.
+        self._set_pack_visibility(self.cli_controls, advanced, {'anchor':'w', 'pady':(6,0)})
+        for widget in (self.open_gate_data_button, self.backup_button, self.restore_backup_button):
+            self._set_pack_visibility(widget, advanced, {'side':'left', 'padx':(8,0)})
+
 
     def apply_task_template(self, _event=None):
         selected_template = self.template_var.get()
@@ -1553,7 +1459,7 @@ class GateApp(tk.Tk):
         # Cria uma nova janela independente
         leitor = tk.Toplevel(self)
         leitor.title("Resposta Final da Tarefa")
-        leitor.geometry("900x700")
+        leitor.state("zoomed")
         leitor.configure(bg="#f4f4f4")
 
         try:
@@ -1851,6 +1757,8 @@ class GateApp(tk.Tk):
         self.work_canvas.configure(scrollregion=self.work_canvas.bbox("all"))
 
     def _resize_work_content(self, event):
+        from gate_widgets import adapt_wraplength
+        adapt_wraplength(self.work_tab, event.width)
         self.work_canvas.itemconfigure(
             self.work_canvas_window, width=event.width)
 
@@ -1882,30 +1790,15 @@ class GateApp(tk.Tk):
     def history_path(self): return gate.app_data_dir() / "history.json"
 
     def read_history(self):
-        try:
-            return json.loads(self.history_path().read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return []
+        # The readable permanent records are the single source of truth.
+        return [{**record, 'output': record.get('execution_output', '')} for record in (self.record_cache or [])]
+
 
     def add_history(self, status, output, validation=None):
-        entries = self.read_history()
-        if not self.conversation_record_path:
-            self.run_id = uuid.uuid4().hex
-        elif not self.run_id:
-            self.run_id = str(self.pending.get("id") or uuid.uuid4().hex)
-        item = {"id": self.run_id, "when": datetime.now().strftime("%d/%m/%Y %H:%M"), "status": status,
-                "quality": self.pending.get("quality", "Não avaliado"),
-                "model": f"{self.pending['model'].capitalize()} — {gate.EFFORT_LABELS[self.pending['effort']]}", "task": self.pending["task"], "output": output,
-                "assessment": self.pending.get("assessment", {}), "policy": self.pending.get("policy", "equilibrada"), "controls": self.pending.get("controls", []), "validation": validation or [],
-                "session_id": self.current_session_id or ""}
-        existing = next((index for index, entry in enumerate(entries)
-                         if entry.get("id") == self.run_id), None)
-        if existing is None:
-            entries.append(item)
-        else:
-            entries[existing].update(item)
-        self.history_path().write_text(json.dumps(
-            entries[-100:], ensure_ascii=False, indent=2), encoding="utf-8")
+        # Permanent Markdown records are authoritative; no second JSON history.
+        if not self.run_id:
+            self.run_id = str(self.pending.get('id') or uuid.uuid4().hex)
+
         # The permanent record is written immediately afterwards; refresh once then.
 
     def _record_matches_filters(self, entry):
@@ -1923,7 +1816,7 @@ class GateApp(tk.Tk):
         """Debounce live search so large histories do not make typing sluggish."""
         if self.history_search_after_id:
             self.after_cancel(self.history_search_after_id)
-        self.history_search_after_id = self.after(250, self.load_history)
+        self.history_search_after_id = self.after(250, lambda: self.load_history(force=False))
 
     def focus_history_search(self, _event=None):
         self.main_notebook.select(self.history_tab)
@@ -1941,7 +1834,24 @@ class GateApp(tk.Tk):
             variable.set("")
         self.load_history()
 
-    def load_history(self):
+    def load_history(self, force=True):
+        if self.history.selection():
+            current = self.record_items.get(self.history.selection()[0], {})
+            self._selected_record_id = current.get('id')
+        if not force and self.record_cache is not None:
+            self.render_history(self.record_cache)
+            return
+        self._history_request += 1
+        request = self._history_request
+        def present(records):
+            if request == self._history_request:
+                self.render_history(records)
+                from gate_records import REPOSITORY
+                if REPOSITORY.issues:
+                    self.record_filter_status.set(self.record_filter_status.get() + ' — ' + '; '.join(REPOSITORY.issues[:3]))
+        self.start_job('Carregar registros', gate.read_execution_records, present)
+
+    def render_history(self, records):
         self.history_search_after_id = None
         for item in self.history.get_children():
             self.history.delete(item)
@@ -1952,7 +1862,7 @@ class GateApp(tk.Tk):
             "Selecione uma tarefa na aba “Tarefas anteriores” para ver seus arquivos.")
         if hasattr(self, "continue_record_button"):
             self.continue_record_button.configure(state="disabled")
-        records = gate.read_execution_records()
+        previous = getattr(self, "_selected_record_id", None)
         self.record_cache = records
         filtered_records = [
             entry for entry in records if self._record_matches_filters(entry)]
@@ -1980,6 +1890,14 @@ class GateApp(tk.Tk):
                 tk.END, self.tr("Nenhum registro corresponde aos filtros atuais." if records else "Nenhum registro persistente encontrado ainda. Os próximos resultados executados pelo Gate serão salvos aqui, mesmo após fechar o programa."))
         self.record_detail.configure(state="disabled")
         self.refresh_usage_dashboard()
+        if previous:
+            for iid, record in self.record_items.items():
+                if record.get('id') == previous:
+                    self.history.selection_set(iid); self.history.see(iid)
+                    self.show_selected_record()
+                    break
+
+
 
     def _update_history_action_scroll(self, _event=None):
         """Keep history actions on one row and expose overflow horizontally."""
@@ -2066,22 +1984,23 @@ class GateApp(tk.Tk):
             return str(value or "")
 
     def on_model_selection_changed(self, _event=None):
-        """Recalculate the current task estimate after selecting a model."""
-        selected = self.model_var.get().strip().lower()
+        selected = model_key(self.model_var.get())
         if selected not in gate.MODELS:
-            self.model_var.set(self.tr(self.pending.get("model", "sol").capitalize())
-                               if self.pending else self.tr("Sol"))
             return
-        if self.pending and selected in gate.MODELS:
-            self.pending["model"] = selected
+        levels = gate.supported_efforts(selected) or gate.supported_efforts("sol")
+        self.effort_box.configure(values=[self.tr(gate.EFFORT_LABELS[k]) for k in levels])
+        if gate_i18n.source_text(self.effort_var.get(), self.language) not in [gate.EFFORT_LABELS[k] for k in levels]:
+            self.effort_var.set(self.tr(gate.EFFORT_LABELS['medium' if 'medium' in levels else levels[0]]))
+        self.sync_decision_settings()
         self.update_consumption_display()
 
+
     def on_legacy_model_selection_changed(self, _event=None):
-        selected = self.legacy_model_var.get().strip().lower()
-        if selected not in gate.LEGACY_MODELS:
-            return
-        self.model_var.set(self.tr(selected.capitalize()))
-        self.on_model_selection_changed()
+        selected = model_key(self.legacy_model_var.get())
+        if selected in gate.MODELS:
+            self.model_var.set(model_label(selected))
+            self.on_model_selection_changed()
+
 
     def selected_record(self):
         selection = self.history.selection()
@@ -2116,8 +2035,10 @@ class GateApp(tk.Tk):
             session_id = str(record.get("session_id") or "").strip()
             workspace = Path(str(record.get("project_folder") or "")).expanduser().resolve()
             model, effort = gate.record_model_settings(record)
-            gate.build_codex_resume_command(
-                session_id, gate.MODELS[model], effort)
+            if not session_id and (record.get('imported_from_package') or record.get('restored_from_backup')):
+                gate.build_codex_exec_command(gate.MODELS[model], effort)
+            else:
+                gate.build_codex_resume_command(session_id, gate.MODELS[model], effort)
         except (OSError, ValueError, KeyError):
             return False
         return (workspace.is_dir() and
@@ -2126,7 +2047,7 @@ class GateApp(tk.Tk):
 
     def continue_selected_record_conversation(self):
         """Open a new conversational turn in a completed Codex task."""
-        if self.running or self.selecting_skills:
+        if self.running or self.selecting_skills or self.busy_operation:
             return messagebox.showinfo(
                 "Continuar conversa", "Aguarde a atividade atual terminar.")
         if self.pending_question:
@@ -2142,7 +2063,8 @@ class GateApp(tk.Tk):
             return messagebox.showinfo(
                 "Falha anterior do Codex CLI",
                 "Esta tarefa terminou antes de receber uma resposta. Atualize o Codex CLI e analise a pergunta novamente.")
-        if not str(record.get("session_id") or "").strip():
+        new_session = bool(record.get("imported_from_package") or record.get("restored_from_backup")) and not record.get("session_id")
+        if not str(record.get("session_id") or "").strip() and not new_session:
             return messagebox.showinfo(
                 "Conversa indisponível",
                 "Este registro foi criado antes de o Gate preservar sessões concluídas. "
@@ -2155,8 +2077,10 @@ class GateApp(tk.Tk):
                     workspace, gate.projects_dir()):
                 raise OSError("A tarefa está fora do pendrive e não pode ser retomada nesta edição.")
             model, effort = gate.record_model_settings(record)
-            gate.build_codex_resume_command(
-                str(record["session_id"]), gate.MODELS[model], effort)
+            if new_session:
+                gate.build_codex_exec_command(gate.MODELS[model], effort)
+            else:
+                gate.build_codex_resume_command(str(record['session_id']), gate.MODELS[model], effort)
             record_path = Path(str(record.get("record_file") or "")).resolve()
             if not record_path.is_file():
                 raise OSError("O registro desta tarefa não está mais disponível.")
@@ -2185,10 +2109,11 @@ class GateApp(tk.Tk):
         self.sent_continuation_message = ""
         self.current_followup_request = ""
         self.continuation_mode = "conversation"
-        self.current_session_id = str(record["session_id"]).strip()
+        self.current_session_id = str(record.get("session_id") or "").strip() or None
         self.pending_question = context or "A tarefa foi concluída. Escreva como deseja continuar."
         self.last_continuation_answer = ""
         self.pending = {
+            "new_session": new_session,
             "id": self.run_id,
             "task": str(record.get("task") or "Tarefa anterior"),
             "project_folder": str(workspace),
@@ -2218,7 +2143,7 @@ class GateApp(tk.Tk):
         self.path_var.set(str(self.projects_root))
         self.task.delete("1.0", tk.END)
         self.task.insert("1.0", self.pending["task"])
-        self.status.set("Tarefa reaberta para conversa na mesma sessão.")
+        self.status.set("Tarefa importada: será criada uma nova sessão com o histórico e os arquivos restaurados." if new_session else "Tarefa reaberta para conversa na mesma sessão.")
         self.simple_progress_var.set(
             "Escreva um ajuste, uma revisão ou o próximo passo para esta tarefa.")
         self.show_continuation_window()
@@ -2321,10 +2246,9 @@ class GateApp(tk.Tk):
         if not record_path.is_file():
             return messagebox.showerror(
                 "Qualificar registro", "Não foi possível localizar o arquivo de registro selecionado.")
-        gate.update_execution_record(
-            record_path, quality=choice[0], evaluated_at=datetime.now().isoformat(timespec="seconds"))
-        self.load_history()
-        self.status.set(f"Resultado registrado: {choice[0]}.")
+        self.start_job('Qualificar registro',lambda: gate.update_execution_record(record_path,
+            quality=choice[0],evaluated_at=datetime.now().isoformat(timespec='seconds')),
+            lambda _: self.load_history(),exclusive=True)
 
     @staticmethod
     def _write_record_pdf(destination, content):
@@ -2408,114 +2332,110 @@ class GateApp(tk.Tk):
         document.save()
 
     def export_selected_record(self):
+        if self.running or self.busy_operation:
+            return
         record = self.selected_record()
         if not record:
-            return messagebox.showinfo("Exportar registro", "Selecione um registro antes de exportar.")
-        stamp = "".join(character for character in str(record.get(
-            "finished_at", "registro")) if character.isalnum())[:16] or "registro"
-        destination = filedialog.asksaveasfilename(
-            title="Exportar registro",
-            initialdir=str(gate.records_dir()),
-            initialfile=f"registro_{stamp}.txt",
-            defaultextension=".txt",
-            filetypes=[("Arquivo de texto", "*.txt"),
-                       ("Documento PDF", "*.pdf")],
-        )
+            return messagebox.showinfo('Exportar registro','Selecione um registro.')
+        destination = filedialog.asksaveasfilename(defaultextension='.txt', filetypes=[('Texto','*.txt'),('PDF','*.pdf')])
         if not destination:
             return
         path = Path(destination)
-        content = self.selected_record_content(record)
-        try:
-            if path.suffix.lower() == ".pdf":
-                self._write_record_pdf(path, content)
+        def export():
+            content = Path(record['record_file']).read_text(encoding='utf-8')
+            if path.suffix.lower() == '.pdf':
+                from gate_storage import atomic_archive
+                with atomic_archive(path) as temporary:
+                    self._write_record_pdf(temporary, content)
             else:
-                path.write_text(content, encoding="utf-8")
-        except (OSError, RuntimeError) as exc:
-            return messagebox.showerror("Exportar registro", f"Não foi possível exportar o registro: {exc}")
-        self.status.set(f"Registro exportado: {path.name}")
-        messagebox.showinfo("Exportar registro",
-                            f"Registro exportado com sucesso para:\n{path}")
+                atomic_write_text(path, content)
+            return path
+        self.start_job('Exportar registro',export,lambda path:self.status.set(f'Registro exportado: {path}'),exclusive=True)
+
 
     def export_selected_task_package(self):
+        if self.running or self.busy_operation:
+            return
         record = self.selected_record()
         if not record:
-            return messagebox.showinfo("Exportar tarefa", "Selecione uma tarefa anterior antes de exportar.")
-        destination = filedialog.asksaveasfilename(
-            title="Exportar tarefa como pacote", defaultextension=".gate",
-            filetypes=[("Pacote Codex Model Gate", "*.gate")])
-        if not destination:
-            return
-        try:
-            package = gate.export_task_package(record, Path(destination))
-        except (OSError, ValueError) as exc:
-            return messagebox.showerror("Exportar tarefa", str(exc))
-        self.status.set(f"Pacote da tarefa exportado: {package.name}")
-        messagebox.showinfo(
-            "Pacote exportado", "O pacote inclui registro, anexos, resultados e metadados. "
-            "Em outro computador, ele será retomado como uma nova sessão com o mesmo contexto.")
+            return messagebox.showinfo('Exportar tarefa', 'Selecione uma tarefa anterior.')
+        destination = filedialog.asksaveasfilename(title='Exportar tarefa', defaultextension='.gate',
+            filetypes=[('Pacote Codex Model Gate','*.gate')])
+        if destination:
+            self.start_job('Exportar tarefa', lambda: gate.export_task_package(record, Path(destination)),
+                lambda path: self.status.set(f'Pacote exportado com anexos e resultados: {path.name}'), exclusive=True)
+
 
     def import_task_package(self):
-        source = filedialog.askopenfilename(
-            title="Importar pacote de tarefa", filetypes=[("Pacote Codex Model Gate", "*.gate")])
+        if self.running or self.busy_operation:
+            return
+        source = filedialog.askopenfilename(title='Importar pacote',filetypes=[('Pacote Codex Model Gate','*.gate')])
         if not source:
             return
-        try:
-            record = gate.import_task_package(Path(source), self.projects_root)
-        except (OSError, ValueError, zipfile.BadZipFile) as exc:
-            return messagebox.showerror("Importar pacote", f"Não foi possível importar o pacote: {exc}")
-        self.load_history()
-        self.task.delete("1.0", tk.END)
-        self.task.insert("1.0", str(record.get("task") or ""))
-        self.pending = None
-        self.status.set("Pacote importado. Analise a tarefa para iniciar uma nova conversa com o contexto restaurado.")
-        messagebox.showinfo(
-            "Pacote importado", "Arquivos e histórico foram restaurados em uma pasta exclusiva. "
-            "Por segurança, a conversa será iniciada como uma nova sessão na sua conta.")
+        root = gate.validate_projects_root(self.path_var.get())
+        def present(record):
+            self.load_history()
+            self.task.delete('1.0', tk.END)
+            self.task.insert('1.0', str(record.get('task') or ''))
+            self.pending = None
+            self.status.set('Pacote importado. Selecione o registro e use Continuar conversa para restaurar o contexto.')
+        self.start_job('Importar pacote',lambda: gate.import_task_package(Path(source),root),present,exclusive=True)
+
 
     def record_outcome(self):
-        if not self.run_id:
-            return messagebox.showinfo("Resultado", "Execute uma tarefa antes de registrar a avaliação do resultado.")
-        entries = self.read_history()
-        for entry in reversed(entries):
-            if entry.get("id") == self.run_id:
-                entry["quality"], entry["evaluated_at"] = self.quality_var.get(
-                ), datetime.now().isoformat(timespec="seconds")
-                self.history_path().write_text(json.dumps(
-                    entries[-100:], ensure_ascii=False, indent=2), encoding="utf-8")
-                gate.update_execution_record(
-                    self.record_note_path, quality=entry["quality"], evaluated_at=entry["evaluated_at"])
-                self.load_history()
-                self.status.set(f"Resultado registrado: {entry['quality']}.")
-                return
-        messagebox.showwarning(
-            "Resultado", "Não foi possível localizar a execução atual no histórico.")
+        if self.running or self.busy_operation:
+            return
+        if not self.record_note_path:
+            return messagebox.showinfo('Resultado', 'Execute uma tarefa antes de registrar a avaliação.')
+        path, quality = self.record_note_path, self.quality_var.get()
+        def present(_):
+            self.load_history()
+            self.status.set(f'Resultado registrado: {quality}.')
+        self.start_job('Registrar resultado', lambda: gate.update_execution_record(path,
+            quality=quality, evaluated_at=datetime.now().isoformat(timespec='seconds')), present, exclusive=True)
+
 
     def refresh_codex_cli_status(self):
-        executable = gate.resolve_codex_executable()
-        self.cli_executable = executable
-        if not executable:
-            self.cli_version = None
-            self.cli_status_var.set(
-                "Codex CLI não encontrado. Você pode analisar tarefas, mas precisa instalar e autenticar o Codex CLI para executá-las.")
-            self.install_cli_button.configure(state="normal")
-            return False
-        cli_version = gate.codex_cli_version(executable)
-        self.cli_version = cli_version
-        version = ("codex-cli " + ".".join(map(str, cli_version))
-                   if cli_version else "instalado")
-        if cli_version is not None and cli_version < (0, 156, 1):
-            self.cli_status_var.set(
-                f"Codex CLI {'.'.join(map(str, cli_version))} encontrado. Atualize para 0.156.1 ou posterior para usar GPT-6 Sol e Luna.")
-            self.install_cli_button.configure(text=self.tr("Atualizar Codex CLI..."),
-                                              command=self.install_codex_cli,
-                                              state="normal")
-        else:
-            self.cli_status_var.set(
-                f"Codex CLI disponível ({version}). Se esta for a primeira utilização, execute uma tarefa para concluir a autenticação da sua conta.")
-            self.install_cli_button.configure(text=self.tr("Instalar Codex CLI..."),
-                                              command=self.install_codex_cli,
-                                              state="disabled")
-        return True
+        self.cli_status_var.set('Verificando versão do Codex CLI...')
+        def inspect():
+            executable = gate.resolve_codex_executable()
+            return executable, gate.codex_cli_version(executable)
+        self.start_job('Codex CLI', inspect, self.apply_cli_status)
+
+    @staticmethod
+    def executable_signature(executable):
+        try:
+            info = Path(executable).stat()
+            return info.st_size, info.st_mtime_ns
+        except (OSError, TypeError):
+            return None
+
+    def apply_cli_status(self, result):
+        if self.running:
+            self._deferred_cli_status = result
+            return
+        self.cli_executable, self.cli_version = result
+        self.cli_signature = self.executable_signature(self.cli_executable)
+        if not self.cli_executable:
+            self.cli_status_var.set('Codex CLI não encontrado. Use Download / atualização oficial para instalar e autenticar.')
+            self.install_cli_button.configure(state='normal')
+            return
+        version = '.'.join(map(str, self.cli_version)) if self.cli_version else 'versão não identificada'
+        warning = gate.cli_model_compatibility_message(self.cli_executable, 'sol', self.cli_version) if self.cli_version else None
+        self.cli_status_var.set(warning or f'Codex CLI {version}. Sol 6.1 requer 0.159.1+. Acesso depende da conta e do workspace.')
+        self.install_cli_button.configure(text=self.tr('Atualizar Codex CLI...'), state='normal')
+        home = gate.app_data_dir() / 'codex-cli' if gate.is_portable_mode() else Path(os.environ.get('CODEX_HOME', str(Path.home()/'.codex')))
+        catalog = local_catalog(home, self.cli_version)
+        from gate_models import MODEL_EFFORTS, MODEL_IDS, BASE_MODEL_IDS, BASE_MODEL_EFFORTS
+        MODEL_IDS.clear(); MODEL_IDS.update(BASE_MODEL_IDS)
+        MODEL_EFFORTS.clear(); MODEL_EFFORTS.update(BASE_MODEL_EFFORTS)
+        for item in catalog:
+            key = next((k for k, v in gate.MODELS.items() if v == item['id']), item['id'])
+            gate.MODELS[key] = item['id']; MODEL_IDS[key] = item['id']; MODEL_EFFORTS[key] = item['efforts']
+        extra = [k for k in gate.MODELS if k not in gate.PRIMARY_MODELS]
+        self.legacy_model_box.configure(values=[self.tr('Selecionar...')] + [model_label(k) for k in extra])
+        self.on_model_selection_changed()
+
 
     def open_codex_install_guide(self):
         try:
@@ -2525,29 +2445,8 @@ class GateApp(tk.Tk):
                 "Instruções do Codex CLI", f"Não foi possível abrir as instruções oficiais: {exc}")
 
     def install_codex_cli(self):
-        executable = gate.resolve_codex_executable()
-        cli_version = gate.codex_cli_version(executable)
-        updating = bool(cli_version and cli_version < (0, 156, 1))
-        if executable and not updating:
-            return messagebox.showinfo("Codex CLI", "O Codex CLI já está disponível neste computador.")
-        confirmed = messagebox.askyesno(
-            "Atualizar Codex CLI" if updating else "Instalar Codex CLI",
-            "O Gate abrirá uma janela visível do PowerShell para executar o instalador oficial do Codex CLI.\n\n"
-            "A instalação baixa software da OpenAI e pode exigir conexão, permissões ou aprovação da política da sua organização. Se o CLI pedir autenticação, entre com sua conta.\n\n"
-            "Deseja continuar?")
-        if not confirmed:
-            return
-        command = f"irm {CODEX_WINDOWS_INSTALLER} | iex"
-        try:
-            subprocess.Popen([
-                "powershell.exe", "-NoExit", "-ExecutionPolicy", "Bypass",
-                "-Command", command,
-            ])
-        except OSError as exc:
-            return messagebox.showerror(
-                "Instalar Codex CLI", f"Não foi possível iniciar o instalador oficial: {exc}")
-        self.cli_status_var.set(
-            "Instalador oficial aberto no PowerShell. Ao terminar, feche a janela e clique em “Verificar novamente”.")
+        self.open_codex_install_guide()
+
 
     def choose_dir(self):
         chosen = filedialog.askdirectory(initialdir=self.path_var.get())
@@ -2570,38 +2469,25 @@ class GateApp(tk.Tk):
                 "Dados do Gate", f"Não foi possível abrir a pasta de dados: {exc}")
 
     def backup_gate_data(self):
-        stamp = datetime.now().strftime("%Y%m%d-%H%M")
-        destination = filedialog.asksaveasfilename(
-            title="Salvar backup do Codex Model Gate",
-            initialdir=str(gate.app_data_dir().parent),
-            initialfile=f"backup-codex-model-gate-{stamp}.zip",
-            defaultextension=".zip",
-            filetypes=[("Arquivo ZIP", "*.zip")],
-        )
-        if not destination:
+        if self.running or self.busy_operation:
             return
-        try:
-            created = gate.create_data_backup(Path(destination))
-        except (OSError, ValueError) as exc:
-            return messagebox.showerror(
-                "Backup", f"Não foi possível criar o backup: {exc}")
-        self.status.set(f"Backup criado: {created.name}")
-        messagebox.showinfo(
-            "Backup concluído", f"Projetos, skills e registros foram salvos em:\n{created}")
+        destination = filedialog.asksaveasfilename(title='Salvar backup',defaultextension='.zip',
+            initialfile=f"backup-codex-model-gate-{datetime.now():%Y%m%d-%H%M}.zip",
+            filetypes=[('Arquivo ZIP','*.zip')])
+        if destination:
+            self.start_job('Criar backup',lambda: gate.create_data_backup(Path(destination)),
+                lambda path: self.status.set(f'Backup concluído, incluindo pastas externas de tarefas: {path}'),exclusive=True)
+
 
     def restore_gate_data(self):
-        source = filedialog.askopenfilename(
-            title="Selecionar backup do Codex Model Gate",
-            initialdir=str(gate.app_data_dir().parent),
-            filetypes=[("Arquivo ZIP de backup", "*.zip"), ("Todos os arquivos", "*.*")],
-        )
-        if not source:
+        if self.running or self.busy_operation:
             return
-        try:
-            preview = gate.inspect_data_backup(Path(source))
-        except (OSError, ValueError) as exc:
-            return messagebox.showerror(
-                "Verificar backup", f"Não foi possível ler o backup: {exc}")
+        source = filedialog.askopenfilename(title='Selecionar backup',filetypes=[('Arquivo ZIP','*.zip')])
+        if source:
+            self.start_job('Verificar backup',lambda: gate.inspect_data_backup(Path(source)),
+                lambda preview: self.confirm_backup_restore(Path(source),preview),exclusive=True)
+
+    def confirm_backup_restore(self, source, preview):
         counts = preview["counts"]
         preview_text = (
             f"Prévia do backup:\n"
@@ -2620,27 +2506,25 @@ class GateApp(tk.Tk):
         )
         if choice is None:
             return
-        try:
-            result = gate.restore_data_backup(Path(source), overwrite=choice)
-        except (OSError, ValueError) as exc:
-            return messagebox.showerror(
-                "Restaurar backup", f"Não foi possível restaurar o backup: {exc}")
-        restored = int(result["restored"])
-        overwritten = int(result["overwritten"])
-        skipped = int(result["skipped"])
-        saved_library = gate.saved_skill_library()
-        self.skill_library_var.set(str(saved_library) if saved_library else "")
-        self.refresh_skills()
-        self.load_history()
-        summary = f"{restored} arquivo(s) restaurado(s)"
-        if overwritten:
-            summary += f"; {overwritten} substituído(s)"
-        if skipped:
-            summary += f"; {skipped} configuração(ões) mantida(s)"
-        self.status.set("Backup restaurado. " + summary + ".")
-        messagebox.showinfo(
-            "Backup restaurado",
-            summary + "\n\nSe a restauração trouxe configurações de outro computador, feche e abra o Gate novamente para aplicá-las por completo.")
+        def present(result):
+            restored = int(result["restored"])
+            overwritten = int(result["overwritten"])
+            skipped = int(result["skipped"])
+            saved_library = gate.saved_skill_library()
+            self.skill_library_var.set(str(saved_library) if saved_library else "")
+            self.refresh_skills()
+            self.load_history()
+            summary = f"{restored} arquivo(s) restaurado(s)"
+            if overwritten:
+                summary += f"; {overwritten} substituído(s)"
+            if skipped:
+                summary += f"; {skipped} configuração(ões) mantida(s)"
+            self.status.set("Backup restaurado. " + summary + ".")
+            messagebox.showinfo(
+                "Backup restaurado",
+                summary + "\n\nSe a restauração trouxe configurações de outro computador, feche e abra o Gate novamente para aplicá-las por completo.")
+        self.start_job('Restaurar backup',lambda: gate.restore_data_backup(source,overwrite=choice),present,exclusive=True)
+
 
     def open_project_folder(self):
         folder = Path(self.path_var.get()).expanduser()
@@ -2676,41 +2560,29 @@ class GateApp(tk.Tk):
         os.startfile(library)
 
     def refresh_skills(self):
-        requested_root = Path(self.path_var.get()).expanduser().resolve()
-        if gate.is_portable_mode() and not gate._path_is_within(
-                requested_root, gate.projects_dir()):
-            self.projects_root = gate.projects_dir().resolve()
-            self.path_var.set(str(self.projects_root))
-            self.status.set(
-                "Na edição portátil, a pasta de projetos foi mantida no pendrive.")
-        else:
-            self.projects_root = requested_root
-        self.projects_root.mkdir(parents=True, exist_ok=True)
-        self.cwd = self.projects_root
-        value = self.skill_library_var.get().strip()
-        library = Path(value).expanduser() if value else None
-        if (gate.is_portable_mode() and library and
-                not gate._path_is_within(library, gate.app_data_dir())):
-            library = gate.managed_skills_dir()
-            self.skill_library_var.set(str(library))
-            gate.save_skill_library(library)
-            self.status.set(
-                "A biblioteca externa foi ignorada: a edição portátil usa skills "
-                "armazenadas no pendrive.")
-        self.skills, memory_stats = gate.refresh_skill_index(
-            self.projects_root, [library] if library and library.is_dir() else None)
-        self.render_skill_list()
-        memory_summary = (
-            f"Memória pronta: {memory_stats['total']} indexada(s), "
-            f"{memory_stats['updated']} nova(s)/alterada(s), "
-            f"{memory_stats['reused']} reutilizada(s) e "
-            f"{memory_stats['removed']} removida(s).")
-        if library and library.is_dir():
-            self.skill_library_status.set(
-                f"Biblioteca vinculada: {library} — {memory_summary}")
-        else:
-            self.skill_library_status.set(
-                f"{memory_summary} Vincule outra biblioteca se quiser ampliar o catálogo.")
+        if self.running:
+            return
+        try:
+            root = gate.validate_projects_root(self.path_var.get())
+            value = self.skill_library_var.get().strip()
+            library = Path(value).expanduser() if value else None
+            if gate.is_portable_mode() and library and not gate._path_is_within(library, gate.app_data_dir()):
+                library = gate.managed_skills_dir()
+                self.skill_library_var.set(str(library))
+            self.projects_root = root
+            if not self.pending or not self.pending.get("project_folder"):
+                self.cwd = root
+        except (ValueError, OSError) as exc:
+            return messagebox.showwarning('Biblioteca', str(exc))
+        def scan():
+            root.mkdir(parents=True, exist_ok=True)
+            return gate.refresh_skill_index(root, [library] if library and library.is_dir() else None)
+        def present(result):
+            self.skills, stats = result
+            self.render_skill_list()
+            self.skill_library_status.set(f"Memória pronta: {stats['total']} skills; {stats['updated']} atualizadas; {stats['reused']} reutilizadas.")
+        self.start_job('Atualizar skills', scan, present, exclusive=True)
+
 
     def render_skill_list(self, selected_names=None):
         """Show the filtered catalog and keep Listbox indexes tied to its items."""
@@ -2823,29 +2695,21 @@ class GateApp(tk.Tk):
             messagebox.showerror("Não foi possível abrir a skill", str(exc))
 
     def refresh_portable_storage_status(self):
-        """Show a transparent, local-only capacity estimate in portable mode."""
         if not gate.is_portable_mode():
             return
-        try:
-            estimate = gate.portable_storage_estimate()
-        except OSError as exc:
-            self.portable_storage_var.set(
-                f"Não foi possível consultar o espaço livre do pendrive: {exc}")
-            return
-        self.portable_storage_var.set(
-            "Espaço livre nesta unidade: " + self._format_storage_size(estimate["free"]) +
-            ". Reserva mínima antes de iniciar uma tarefa: " +
-            self._format_storage_size(estimate["required_free"]) +
-            ". O Gate já usa " + self._format_storage_size(
-                estimate["app_size"] + estimate["data_size"]) +
-            " nesta unidade. O tamanho dos resultados do Codex varia conforme a tarefa.")
+        def present(estimate):
+            self.portable_storage_var.set('Espaço livre nesta unidade: ' + self._format_storage_size(estimate['free'])
+                + '. Reserva mínima: ' + self._format_storage_size(estimate['required_free'])
+                + '. O Gate usa ' + self._format_storage_size(estimate['app_size'] + estimate['data_size']) + '.')
+        self.start_job('Armazenamento portátil',gate.portable_storage_estimate,present)
+
 
     def has_portable_capacity(self, additional_bytes=0, purpose="continuar"):
         """Block a portable write that cannot fit its conservative reserve."""
         if not gate.is_portable_mode():
             return True
         try:
-            estimate = gate.portable_storage_estimate(additional_bytes)
+            estimate = gate.portable_storage_estimate(additional_bytes, scan_sizes=False)
         except OSError as exc:
             messagebox.showerror("Armazenamento portátil",
                                  f"Não foi possível consultar o espaço do pendrive: {exc}")
@@ -2973,6 +2837,8 @@ class GateApp(tk.Tk):
                     workspace, gate.projects_dir()))):
             return
         model = str(state.get("model", "terra")).lower()
+        if model == "sol" and not state.get("model_id"):
+            model = "sol6"
         effort = str(state.get("effort", "medium")).lower()
         self.projects_root = workspace.parent
         self.path_var.set(str(self.projects_root))
@@ -3051,6 +2917,7 @@ class GateApp(tk.Tk):
             "task": self.pending.get("task", ""),
             "project_folder": str(workspace),
             "model": self.pending.get("model", "terra"),
+            "model_id": gate.MODELS.get(self.pending.get("model", ""), ""),
             "effort": self.pending.get("effort", "medium"),
             "policy": self.pending.get("policy", "equilibrada"),
             "skills": list(self.pending.get("skills", [])),
@@ -3075,7 +2942,7 @@ class GateApp(tk.Tk):
             self.pending_workspace()
         except (OSError, ValueError):
             return
-        if not self.pending_question or not self.current_session_id:
+        if not self.pending_question or not (self.current_session_id or self.pending and self.pending.get("new_session")):
             return
         if self.continuation_window and self.continuation_window.winfo_exists():
             self.continuation_window.deiconify()
@@ -3155,49 +3022,41 @@ class GateApp(tk.Tk):
             messagebox.showerror("Arquivos da tarefa", str(exc))
 
     def add_continuation_attachments(self):
-        """Copy extra context into the active task, ready for its next turn."""
-        if self.running:
-            return messagebox.showinfo("Anexos", "Aguarde a atividade atual terminar.")
-        if not self.pending or not self.current_session_id:
-            return messagebox.showinfo(
-                "Anexos", "Abra ou continue uma tarefa com sessão disponível antes de enviar um arquivo.")
-        try:
-            workspace = self.pending_workspace()
-        except (OSError, ValueError) as exc:
-            return messagebox.showerror("Anexos", str(exc))
-        chosen = filedialog.askopenfilenames(
-            title="Enviar arquivos para a próxima mensagem",
-            filetypes=[("Todos os arquivos", "*.*")])
-        paths = [Path(value).expanduser().resolve() for value in chosen]
-        paths = [path for path in paths if path.is_file()]
-        if not paths:
+        if self.running or self.busy_operation:
             return
-        size = sum(gate.directory_size(path) for path in paths)
-        if not self.has_portable_capacity(size, "copiar estes anexos"):
+        if not self.pending or not (self.current_session_id or self.pending.get('new_session')):
+            return messagebox.showinfo('Anexos','Abra uma tarefa antes de enviar um arquivo.')
+        workspace=self.pending_workspace()
+        chosen=filedialog.askopenfilenames(title='Enviar arquivos para a próxima mensagem',filetypes=[('Todos os arquivos','*.*')])
+        paths=[Path(value).expanduser().resolve() for value in chosen]
+        paths=[path for path in paths if path.is_file()]
+        if not paths or not self.has_portable_capacity(sum(path.stat().st_size for path in paths),'copiar estes anexos'):
             return
-        try:
-            new_items = gate.stage_continuation_attachments(workspace, paths)
-            self.pending.setdefault("staged_attachments", []).extend(new_items)
-            gate.save_continuation_state(
-                workspace, self.continuation_state(self.pending_question or
-                                                    "A tarefa está pronta para continuar."))
-            if self.conversation_record_path and self.conversation_record_path.is_file():
-                gate.update_execution_record(
-                    self.conversation_record_path,
-                    attachments=self.pending["staged_attachments"])
-                self.load_history()
-        except (OSError, ValueError) as exc:
-            return messagebox.showerror("Anexos", f"Não foi possível preparar os arquivos: {exc}")
-        self.status.set(f"{len(new_items)} arquivo(s) enviado(s) para a próxima mensagem da conversa.")
-        self.refresh_portable_storage_status()
-        messagebox.showinfo(
-            "Arquivo enviado", "O arquivo foi copiado para a pasta da tarefa e será informado ao Codex na próxima mensagem.")
+        attachments=list(self.pending.get('staged_attachments',[]))
+        recovery=self.continuation_state(self.pending_question) if self.current_session_id else None
+        record_path=self.conversation_record_path
+        def copy():
+            new_items=gate.stage_continuation_attachments(workspace,paths)
+            combined=attachments+new_items
+            if recovery:
+                recovery['staged_attachments']=combined
+                gate.save_continuation_state(workspace,recovery)
+            if record_path:
+                gate.update_execution_record(record_path,attachments=combined)
+            return combined,len(new_items)
+        def present(result):
+            self.pending['staged_attachments']=result[0]
+            self.load_history()
+            self.status.set(f'{result[1]} arquivo(s) preparado(s) para a próxima mensagem.')
+            self.refresh_portable_storage_status()
+        self.start_job('Copiar anexos',copy,present,exclusive=True)
+
 
     def remove_continuation_attachment(self):
         """Unlink one active context file while retaining its audit trail on disk."""
         if self.running:
             return messagebox.showinfo("Anexos", "Aguarde a atividade atual terminar.")
-        if not self.pending or not self.current_session_id:
+        if not self.pending or not (self.current_session_id or self.pending.get("new_session")):
             return messagebox.showinfo(
                 "Anexos", "Abra ou continue uma tarefa com sessão disponível antes de remover um arquivo.")
         active = [(index, item) for index, item in enumerate(
@@ -3227,8 +3086,9 @@ class GateApp(tk.Tk):
             item["detached_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
             try:
                 workspace = self.pending_workspace()
-                gate.save_continuation_state(workspace, self.continuation_state(
-                    self.pending_question or "A tarefa está pronta para continuar."))
+                if self.current_session_id:
+                    gate.save_continuation_state(workspace, self.continuation_state(
+                        self.pending_question or "A tarefa está pronta para continuar."))
                 if self.conversation_record_path and self.conversation_record_path.is_file():
                     gate.update_execution_record(
                         self.conversation_record_path,
@@ -3246,9 +3106,9 @@ class GateApp(tk.Tk):
         ttk.Button(controls, text="Remover da conversa", command=detach).pack(side="right")
 
     def continue_current_task(self):
-        if self.running:
+        if self.running or self.busy_operation:
             return
-        if not self.pending or not self.current_session_id:
+        if not self.pending or not (self.current_session_id or self.pending.get("new_session")):
             return messagebox.showerror(
                 "Continuação", "Não há uma sessão válida para retomar.")
         answer = self.continuation_answer.get("1.0", tk.END).strip() if self.continuation_answer else ""
@@ -3269,18 +3129,23 @@ class GateApp(tk.Tk):
                 return messagebox.showerror(
                     "Codex CLI ausente",
                     "O executável do Codex não foi encontrado. Confira a seção Codex CLI na aba Tarefa.")
+            if executable != self.cli_executable or self.executable_signature(executable) != self.cli_signature or not self.cli_version:
+                self.refresh_codex_cli_status()
+                return messagebox.showinfo('Codex CLI', 'Verificando a versão do CLI. Aguarde o resultado antes de executar.')
             compatibility_message = gate.cli_model_compatibility_message(
-                executable, str(self.pending.get("model", "")).lower())
+                executable, str(self.pending.get("model", "")).lower(), self.cli_version)
             if compatibility_message:
                 self.status.set(compatibility_message)
                 return messagebox.showwarning("Atualização do Codex CLI", compatibility_message)
             live_web_search = (bool(self.pending.get("live_web_search")) or
                                gate.needs_live_web_search(answer, []))
-            command = gate.build_codex_resume_command(
-                self.current_session_id, model, effort,
-                workspace if self.pending.get("browser_research") else None,
-                live_web_search=live_web_search,
-                codex_executable=executable)
+            if self.pending.get('new_session'):
+                command = gate.build_codex_exec_command(model, effort,
+                    workspace if self.pending.get('browser_research') else None,live_web_search,executable)
+            else:
+                command = gate.build_codex_resume_command(self.current_session_id, model, effort,
+                    workspace if self.pending.get('browser_research') else None,
+                    live_web_search=live_web_search,codex_executable=executable)
             if self.continuation_mode == "conversation":
                 if not messagebox.askyesno(
                         "Confirmar continuidade",
@@ -3294,6 +3159,11 @@ class GateApp(tk.Tk):
             else:
                 prompt = gate.build_continuation_prompt(
                     answer, self.pending.get("staged_attachments", []))
+            if self.pending.get('new_session'):
+                context = json.dumps(self.conversation_turns, ensure_ascii=False)[-64000:]
+                historical = ('HISTÓRICO IMPORTADO PARA CONTEXTO (não repita operações passadas):\n' + context
+                    + '\nTarefa original: ' + self.pending['task'] + '\nNOVO PEDIDO DO USUÁRIO: ' + answer)
+                prompt = gate.build_execution_prompt(historical, '', self.pending.get('staged_attachments', []))
             prompt += ("\nSe citar uma página, confira na fonte original que ela sustenta "
                        "diretamente a afirmação; não invente links ou seções.")
             # Preserve a draft before starting the process. If the process
@@ -3308,7 +3178,8 @@ class GateApp(tk.Tk):
             state["answer_sent_at"] = datetime.now().astimezone().isoformat(
                 timespec="seconds")
             state["live_web_search"] = live_web_search
-            gate.save_continuation_state(workspace, state)
+            if self.current_session_id:
+                gate.save_continuation_state(workspace, state)
             self.pending["live_web_search"] = live_web_search
         except KeyError:
             return messagebox.showerror(
@@ -3320,10 +3191,11 @@ class GateApp(tk.Tk):
         self.cwd = workspace
         self.projects_root = workspace.parent
         self.path_var.set(str(self.projects_root))
-        self.before_files = self.snapshot_files()
+        self.before_files = {}
         self.artifacts = []
         self.clear_artifact_display()
         self.continuation_in_flight = True
+        self.supervisor = ProcessSupervisor()
         self.cancel_requested = False
         self.execution_started_at = datetime.now().astimezone().isoformat(timespec="seconds")
         self.execution_started_monotonic = clock.monotonic()
@@ -3337,7 +3209,10 @@ class GateApp(tk.Tk):
         self.update_progress()
         self.close_continuation_window()
         self.append_log("\nResposta enviada para retomar a mesma tarefa.\n")
-        threading.Thread(target=self.run_codex, args=(command, prompt), daemon=True).start()
+        def prepared(snapshot):
+            self.before_files = snapshot
+            threading.Thread(target=self.run_codex, args=(command, prompt), daemon=True).start()
+        self.start_job('Preparação da tarefa',lambda: gate.snapshot_project_files(workspace),prepared,exclusive=True)
 
     def on_task_modified(self, _event=None):
         """Refresh the action cue after typing, pasting, or choosing a template."""
@@ -3363,6 +3238,12 @@ class GateApp(tk.Tk):
             text=("✓ " if executed else "") + self.tr("2. Confirmar e executar"))
 
     def recommend(self):
+        if self.running or self.busy_operation or self.selecting_skills:
+            return
+        try:
+            self.projects_root = gate.validate_projects_root(self.path_var.get())
+        except (ValueError, OSError) as exc:
+            return messagebox.showwarning('Pasta de projetos', str(exc))
         if self.pending_question:
             self.show_continuation_window()
             return messagebox.showinfo(
@@ -3379,16 +3260,43 @@ class GateApp(tk.Tk):
         selected = [self.filtered_skill_items[i]
                     for i in self.skill_list.curselection()] if not automatic else []
         if automatic:
-            selected = gate.focused_skills_for_task(analysis_task, self.skills) or []
-            selected = gate.include_orchestrator_skill(
-                self.projects_root,
-                selected[:gate.auto_skill_selection_limit(analysis_task)],
-                roots, catalog=self.skills)
-            selection_source = ("Seleção por resultado: ação e entrega reconhecidas em regras explícitas."
-                                if len(selected) > 1 else
-                                "Nenhuma skill específica foi identificada com segurança. Use a seleção manual se desejar.")
-            if gate.needs_live_web_search(analysis_task, selected):
-                selection_source += " Pesquisa web ao vivo do Codex disponível para conferir as fontes."
+            executable = gate.resolve_codex_executable()
+            if not executable:
+                return messagebox.showwarning('Seleção inteligente',
+                    'Instale e autentique o Codex CLI ou escolha as skills manualmente.')
+            attachments = list(self.attachments)
+            projects_root = self.projects_root
+            self.pending = None
+            self.update_action_buttons()
+            self.selecting_skills = True
+            self.selection_supervisor = ProcessSupervisor()
+            self.status.set('A IA está analisando a tarefa, os anexos e todas as competências da biblioteca.')
+            self.simple_progress_var.set('Análise inteligente pelo CLI: esta etapa usa o modelo e consome tokens.')
+            def analyze():
+                catalog = gate.discover_skills(projects_root, roots)
+                result = select_skills_with_ai(task, catalog, attachments, executable,
+                    supervisor=self.selection_supervisor)
+                return catalog, result
+            def present(result):
+                self.selecting_skills = False
+                catalog, decision = result
+                self.skills = catalog
+                if task != self.task.get('1.0', tk.END).strip() or attachments != self.attachments:
+                    raise ValueError('A tarefa ou os anexos mudaram. Analise novamente.')
+                selected = gate.include_orchestrator_skill(
+                    projects_root, decision['selected'], roots, catalog=catalog)
+                source = 'Seleção inteligente por IA: tarefa, anexos e catálogo completo analisados.'
+                if not decision['selected']:
+                    source += ' A IA não identificou uma skill pertinente no catálogo.'
+                if decision['attachment_findings']:
+                    source += '\nAnexos: ' + decision['attachment_findings']
+                if decision['limitations']:
+                    source += '\nLimitações: ' + decision['limitations']
+                self.apply_recommendation(task, analysis_task, selected, True, source)
+                self.pending['skill_selection'] = {key: value for key, value in decision.items() if key != 'selected'}
+                self.pending['live_web_search'] = decision['live_web_search'] or self.pending['live_web_search']
+            self.start_job('Seleção inteligente', analyze, present, exclusive=True)
+            return
         else:
             selected = gate.include_orchestrator_skill(
                 self.projects_root, selected, roots, catalog=self.skills)
@@ -3404,20 +3312,21 @@ class GateApp(tk.Tk):
             analysis_task, selected, assessment)
         policy = gate_i18n.source_text(self.policy_var.get(), self.language)
         controls = gate.decision_controls(assessment, policy)
-        self.pending = {"id": uuid.uuid4().hex, "task": task, "attachments": list(self.attachments), "staged_attachments": [], "project_folder": "", "skills": [
+        self.pending = {"recommended_model": model, "recommended_effort": effort, "id": uuid.uuid4().hex, "task": task, "attachments": list(self.attachments), "staged_attachments": [], "project_folder": "", "skills": [
             s["name"] for s in selected], "selected_skills": selected, "model": model, "effort": effort, "assessment": assessment, "policy": policy, "controls": controls,
             "live_web_search": gate.needs_live_web_search(analysis_task, selected)}
         self.action_executed = False
         self.update_action_buttons()
-        self.model_var.set(model.capitalize())
+        self.model_var.set(model_label(model))
         self.effort_var.set(self.tr(gate.EFFORT_LABELS[effort]))
-        self.decision_model_card_var.set(model.capitalize())
+        self.decision_model_card_var.set(model_label(model))
         self.decision_effort_card_var.set(gate.EFFORT_LABELS[effort])
         self.decision_risk_card_var.set(gate.risk_level(assessment))
-        self.decision_skills_card_var.set(str(len(selected)) if selected else "Nenhuma")
+        self.decision_skills_card_var.set(str(sum(x["name"] != gate.ORCHESTRATOR_SKILL_NAME for x in selected)))
         if automatic:
             selected_names = {skill["name"] for skill in selected}
             self.render_skill_list(selected_names)
+        self.on_model_selection_changed()
         self.update_active_skills(selected, automatic)
         names = ", ".join(self.pending["skills"]) or "nenhuma"
         attachment_names = ", ".join(
@@ -3427,7 +3336,7 @@ class GateApp(tk.Tk):
             f"Recomendação: {model.capitalize()} — {gate.EFFORT_LABELS[effort]}\n{selection_source}\nSkills {label}: {names}\nAnexos: {attachment_names}\nMotivo: {reason}.\n{gate.assessment_summary(assessment)}\nAguardando autorização.")
         self.simple_progress_var.set(
             "Decisão pronta. Confira os cartões, as skills recomendadas e a pasta de destino; depois autorize a execução.")
-        self.decision_text.set(gate.decision_summary(assessment, policy))
+        self.sync_decision_settings()
         destination = Path(self.path_var.get()).expanduser()
         self.decision_checklist_var.set(
             "Checklist antes de confirmar: 1) o resultado esperado está claro; "
@@ -3506,173 +3415,99 @@ class GateApp(tk.Tk):
             self.after(60000, self.check_scheduled_tasks)
 
     def authorize_run(self):
-        if self.running:
+        if self.running or self.busy_operation:
             return
         if self.pending_question:
             self.show_continuation_window()
-            return messagebox.showinfo(
-                "Continuação pendente",
-                "Responda ou conclua a pergunta pendente antes de autorizar outra tarefa.")
-        if not self.pending:
-            return messagebox.showwarning("Autorização", "Analise uma tarefa antes de executar.")
-        if (self.task.get("1.0", tk.END).strip() != self.pending["task"] or
-                self.attachments != self.pending["attachments"]):
-            self.update_action_buttons()
-            return messagebox.showwarning(
-                "Análise desatualizada",
-                "A tarefa ou os anexos mudaram. Clique em Analisar tarefa novamente antes de executar.")
-        attachment_bytes = sum(
-            gate.directory_size(path) for path in self.pending["attachments"]
-            if Path(path).is_file())
-        if not self.has_portable_capacity(
-                attachment_bytes, "iniciar esta tarefa e copiar os anexos"):
             return
-        selected_model = self.model_var.get().lower()
-        effort_label = gate_i18n.source_text(self.effort_var.get(), self.language)
-        selected_effort = next((key for key, label in gate.EFFORT_LABELS.items(
-        ) if label == effort_label), None)
-        if selected_model not in gate.MODELS or not selected_effort:
-            return messagebox.showwarning("Decisão", "Escolha um modelo e um nível válidos.")
-        self.pending["model"], self.pending["effort"] = selected_model, selected_effort
-        assessment, policy = self.pending["assessment"], self.pending["policy"]
-        reinforced = int(assessment["risk"]) >= 3 or (
-            policy == "rigorosa" and int(assessment["risk"]) >= 1)
-        if reinforced:
-            phrase = simpledialog.askstring(
-                "Confirmação reforçada", "Esta tarefa tem risco relevante. Digite EXECUTAR para confirmar que revisou escopo, arquivos e consequências:")
-            if phrase != "EXECUTAR":
-                return messagebox.showinfo("Execução não autorizada", "A execução foi mantida bloqueada.")
-        portable_note = (
-            "\n\nVersão portátil: os anexos somam " +
-            self._format_storage_size(attachment_bytes) +
-            " e serão copiados para a pasta da tarefa no pendrive."
-            if gate.is_portable_mode() else "")
-        browser_enabled = self.browser_research_var.get()
-        live_web_search = bool(self.pending.get("live_web_search")) or browser_enabled
+        if not self.pending:
+            return messagebox.showwarning('Autorização', 'Analise uma tarefa antes de executar.')
+        if self.task.get('1.0', tk.END).strip() != self.pending['task'] or self.attachments != self.pending['attachments']:
+            return messagebox.showwarning('Análise desatualizada', 'A tarefa ou os anexos mudaram. Analise novamente.')
+        signature = self.pending.get('skill_selection', {}).get('attachment_signature')
+        if signature is not None:
+            try:
+                if signature != attachment_signature(self.attachments):
+                    raise ValueError('O conteúdo de um anexo mudou. Analise novamente antes de executar.')
+            except (ValueError, OSError) as exc:
+                return messagebox.showwarning('Análise desatualizada', str(exc))
+        try:
+            root = gate.validate_projects_root(self.path_var.get())
+            model = model_key(self.model_var.get())
+            effort_label = gate_i18n.source_text(self.effort_var.get(), self.language)
+            effort = next((k for k, v in gate.EFFORT_LABELS.items() if v == effort_label), '')
+            gate.validate_model_effort(gate.MODELS[model], effort)
+            policy = gate_i18n.source_text(self.policy_var.get(), self.language)
+            if policy not in gate.POLICIES:
+                raise ValueError('Escolha uma política válida.')
+        except (ValueError, OSError, KeyError) as exc:
+            return messagebox.showwarning('Decisão', str(exc))
+        self.projects_root = root
+        self.pending.update(model=model, effort=effort, policy=policy,
+                            controls=gate.decision_controls(self.pending['assessment'], policy))
         executable = gate.resolve_codex_executable()
         if not executable:
-            self.status.set("Codex CLI não encontrado; a tarefa não foi iniciada.")
-            self.phase_var.set("Codex CLI ausente")
-            self.simple_progress_var.set(
-                "Confira a seção Codex CLI na aba Tarefa e clique em Verificar novamente.")
-            return messagebox.showerror(
-                "Codex CLI ausente",
-                "O executável do Codex não foi encontrado. Confira a seção Codex CLI na aba Tarefa.")
-        compatibility_message = gate.cli_model_compatibility_message(
-            executable, selected_model,
-            self.cli_version if executable == self.cli_executable else None)
-        if compatibility_message:
-            self.status.set(compatibility_message)
-            self.simple_progress_var.set(compatibility_message)
-            return messagebox.showwarning("Atualização do Codex CLI", compatibility_message)
-        browser_note = ("\n\nO navegador visual do Gate ficará disponível; "
-                        "o Edge abrirá somente se o Codex usar essa ferramenta."
-                        if browser_enabled else
-                        "\n\nO Codex poderá pesquisar fontes atuais na web."
-                        if live_web_search else "")
-        if not messagebox.askyesno("Confirmar execução", f"Executar com {self.pending['model'].capitalize()} — {gate.EFFORT_LABELS[self.pending['effort']]}?\n\nSkills: {', '.join(self.pending['skills']) or 'nenhuma'}{portable_note}{browser_note}"):
+            self.open_codex_install_guide()
+            return messagebox.showwarning('Codex CLI', 'Instale e autentique o CLI; depois clique em Verificar novamente.')
+        if not self.cli_version or executable != self.cli_executable or self.executable_signature(executable) != self.cli_signature:
+            self.refresh_codex_cli_status()
+            return messagebox.showinfo('Codex CLI', 'Verificando a versão do CLI. Aguarde o resultado antes de executar.')
+        warning = gate.cli_model_compatibility_message(executable, model, self.cli_version)
+        if warning:
+            self.cli_status_var.set(warning)
+            return messagebox.showwarning('Atualização do Codex CLI', warning)
+        risk = int(self.pending['assessment']['risk'])
+        if risk >= 3 or policy == 'rigorosa' and risk >= 1:
+            if simpledialog.askstring('Confirmação reforçada', 'Digite EXECUTAR para confirmar que revisou escopo, arquivos e consequências:') != 'EXECUTAR':
+                return
+        if not self.has_portable_capacity(sum(p.stat().st_size for p in self.attachments if p.is_file()), 'iniciar esta tarefa'):
             return
-        self.status.set("Execução autorizada. Preparando a tarefa.")
-        self.phase_var.set("Preparando tarefa")
-        self.simple_progress_var.set("Preparando a pasta e os arquivos da tarefa.")
-        self.update_idletasks()
-        try:
-            self.cwd = gate.execution_workspace(
-                self.projects_root, self.pending["id"], self.pending["task"])
-            self.pending["project_folder"] = str(self.cwd)
-            self.note_startup_step("Pasta da tarefa criada")
-            self.pending["staged_attachments"] = gate.stage_attachments(
-                self.cwd, self.pending["attachments"], self.pending["id"])
-            self.note_startup_step("Anexos preparados")
-        except OSError as exc:
-            self.status.set("Falha ao preparar a pasta ou os anexos.")
-            return messagebox.showerror("Anexos", f"Não foi possível preparar os anexos: {exc}")
-        self.pending["browser_research"] = browser_enabled
-        self.pending["live_web_search"] = live_web_search
-        self.pending["browser_query"] = (
-            self.browser_query_var.get().strip() or self.pending["task"])
-        self.note_startup_step("Lendo skills selecionadas")
-        try:
-            self.pending["skill_fingerprints"] = gate.skill_fingerprints(
-                self.pending["selected_skills"])
-            instructions = gate.selected_skill_instructions(
-                self.pending["selected_skills"])
-        except (OSError, ValueError, KeyError) as exc:
-            self.note_startup_step(f"Falha ao ler skills: {type(exc).__name__}: {exc}")
-            self.status.set("Falha ao preparar as skills da tarefa.")
-            return messagebox.showerror("Skills", f"Não foi possível preparar as skills: {exc}")
-        self.note_startup_step("Skills carregadas")
-        # Send the potentially large task/skill bundle through stdin. Passing
-        # it as a command-line argument can exceed CreateProcess limits on
-        # Windows and raise WinError 206 (filename or extension too long).
-        try:
-            command = gate.build_codex_exec_command(
-                gate.MODELS[self.pending["model"]], self.pending["effort"],
-                self.cwd if browser_enabled else None,
-                live_web_search=live_web_search,
-                codex_executable=executable)
-        except Exception as exc:
-            self.note_startup_step(f"Falha ao montar comando: {type(exc).__name__}: {exc}")
-            self.status.set("Não foi possível iniciar a tarefa.")
-            return messagebox.showerror("Execução", str(exc))
-        try:
-            self.before_files = self.snapshot_files()
-        except Exception as exc:
-            self.note_startup_step(f"Aviso ao listar arquivos: {type(exc).__name__}: {exc}")
-            self.before_files = {}
-        self.artifacts = []
-        try:
-            self.clear_artifact_display()
-            self.clear_log()
-            self.show_response("", select=False)
-        except Exception as exc:
-            self.note_startup_step(f"Aviso ao atualizar tela: {type(exc).__name__}: {exc}")
+        browser = bool(self.browser_research_var.get())
+        live = bool(self.pending.get('live_web_search')) or browser
+        config = AuthorizedTask(self.pending['id'], self.pending['task'], root, model, effort, policy,
+                                tuple(self.attachments), browser, live, self.browser_query_var.get().strip())
+        message = (f"Executar com {model_label(model)} — {gate.EFFORT_LABELS[effort]}?\n\n"
+                   f"Destino: {root}\nPolítica: {gate.POLICIES[policy]}\n"
+                   f"Anexos: {len(config.attachments)}\nSkills: {', '.join(self.pending['skills']) or 'nenhuma'}")
+        if not messagebox.askyesno('Confirmar execução', message):
+            return
+        self.supervisor = ProcessSupervisor()
         self.cancel_requested = False
-        self.current_session_id = None
-        self.current_token_usage = None
-        self.pending_question = None
-        self.continuation_mode = "question"
+        self.running = True
+        self.pending.update(browser_research=browser, live_web_search=live, browser_query=config.browser_query)
+        self.phase_var.set('Preparando tarefa')
+        self.simple_progress_var.set('Copiando anexos e preparando instruções...')
+        self.execution_started_at = datetime.now().astimezone().isoformat(timespec='seconds')
+        self.execution_started_monotonic = clock.monotonic()
+        self.update_progress()
+        skills = [dict(item) for item in self.pending['selected_skills']]
+        self.start_job('Preparação da tarefa', lambda: prepare_task(config, skills, executable, self.supervisor.cancelled),
+                       self.begin_prepared_task, exclusive=True)
+
+    def begin_prepared_task(self, result):
+        self.cwd, staged, fingerprints, instructions, command, self.before_files = result
+        self.pending.update(project_folder=str(self.cwd), staged_attachments=staged, skill_fingerprints=fingerprints)
+        self.artifacts = []
+        self.clear_artifact_display()
+        self.clear_log()
+        self.show_response('', select=False)
+        self.current_session_id = self.current_token_usage = self.pending_question = None
         self.conversation_record_path = None
         self.conversation_turns = []
-        self.sent_continuation_message = ""
-        self.current_followup_request = ""
-        self.run_id = self.pending["id"]
-        self.execution_started_at = datetime.now(
-        ).astimezone().isoformat(timespec="seconds")
-        self.execution_started_monotonic = clock.monotonic()
+        self.sent_continuation_message = self.current_followup_request = ''
+        self.continuation_mode = 'question'
+        self.run_id = self.pending['id']
         self.execution_duration_seconds = None
         self.record_note_path = None
-        self.estimated_total_seconds = None
-        self.running = True
-        self.note_startup_step("Enviando início ao processo do Codex")
-        try:
-            threading.Thread(target=self.run_prepared_task, args=(
-                command, instructions), daemon=True).start()
-        except (RuntimeError, OSError) as exc:
-            self.running = False
-            self.note_startup_step(f"Falha ao criar processo de trabalho: {type(exc).__name__}: {exc}")
-            self.status.set("Não foi possível iniciar o Codex.")
-            return messagebox.showerror("Execução", str(exc))
         self.action_executed = True
         self.update_action_buttons()
-        try:
-            self.consumption_var.set("Consumo desta tarefa: aguardando retorno do Codex.")
-            self.quality_var.set("Não avaliado")
-            self.status.set(
-                "Tarefa em execução. Aguarde a mensagem ‘Execução concluída com sucesso’.")
-            self.phase_var.set("Iniciando Codex")
-            self.simple_progress_var.set(
-                "Preparando a pasta exclusiva da tarefa e iniciando o Codex com pesquisa web."
-                if live_web_search else
-                "Preparando a pasta exclusiva da tarefa e iniciando o Codex.")
-            self.set_controls("disabled")
-            model_label = f"{self.pending['model'].capitalize()} — {gate.EFFORT_LABELS[self.pending['effort']]}"
-            self.estimated_total_seconds = gate.estimate_duration_seconds(
-                model_label, self.record_cache)
-            self.update_progress()
-        except Exception as exc:
-            self.note_startup_step(f"Aviso ao atualizar controles: {type(exc).__name__}: {exc}")
-            self.status.set("O Codex foi acionado; confira a aba Resposta e o registro da tarefa.")
+        self.consumption_var.set('Consumo desta tarefa: aguardando retorno do Codex.')
+        self.phase_var.set('Iniciando Codex')
+        self.set_controls('disabled')
+        self.estimated_total_seconds = gate.estimate_duration_seconds(
+            f"{model_label(self.pending['model'])} — {gate.EFFORT_LABELS[self.pending['effort']]}", self.record_cache)
+        threading.Thread(target=self.run_prepared_task, args=(command, instructions), daemon=True).start()
+
 
     def note_startup_step(self, step):
         """Keep a local startup trace if execution stalls before a response."""
@@ -3719,84 +3554,36 @@ class GateApp(tk.Tk):
             process = self.active_process
             if process and process.poll() is None:
                 try:
-                    process.terminate()
+                    self.supervisor.cancel()
                 except OSError:
                     pass
             self.events.put(("done", 1, f"A execução do Codex falhou: {exc}", None, ""))
 
     def _run_codex(self, command, prompt):
-        if self.cancel_requested:
-            self.events.put(("done", 1, "Execução cancelada pelo usuário.", None, ""))
-            return
-        try:
-            process = subprocess.Popen(
-                command, cwd=self.cwd, text=True, encoding="utf-8", errors="replace",
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1,
-                env=gate.codex_process_environment(),
-                **hidden_windows_process_options(),
-            )
-        except OSError as exc:
-            self.note_startup_step(f"Falha ao abrir processo: {type(exc).__name__}: {exc}")
-            self.events.put(
-                ("done", 1, f"Não foi possível iniciar o Codex: {exc}", None, ""))
-            return
-        self.note_startup_step("Processo do Codex iniciado")
-        self.active_process = process
-        if self.cancel_requested:
-            process.terminate()
-        self.events.put(("phase", "Codex iniciado",
-                         "O Codex recebeu a tarefa e está preparando a resposta."))
-        collected = []
-        finished = threading.Event()
+        def started(process):
+            self.active_process = process
+            self.events.put(('phase', 'Codex iniciado', 'O Codex recebeu a tarefa.'))
+        result, session, output, raw = self.supervisor.run(command, prompt, self.cwd,
+                gate.codex_process_environment(), lambda text: self.events.put(('log', text)), started)
+        self.events.put(('done', result, output, session, raw))
 
-        def reader(stream):
-            for line in iter(stream.readline, ""):
-                collected.append(line)
-                display = gate.codex_event_display_text(line)
-                if display and not finished.is_set():
-                    self.events.put(("log", display))
-            stream.close()
-        readers = [threading.Thread(target=reader, args=(
-            stream,), daemon=True) for stream in (process.stdout, process.stderr)]
-        for item in readers:
-            item.start()
-        try:
-            process.stdin.write(prompt)
-            process.stdin.close()
-        except (OSError, BrokenPipeError) as exc:
-            collected.append(
-                f"Não foi possível enviar a tarefa ao Codex: {exc}\n")
-        result = process.wait()
-        for item in readers:
-            item.join(timeout=5)
-        if any(item.is_alive() for item in readers):
-            collected.append(
-                "\nO Codex encerrou, mas a leitura do retorno não terminou. "
-                "Exibindo os dados recebidos até agora.\n")
-            result = result or 1
-        finished.set()
-        raw_output = "".join(list(collected))
-        session_id, output = gate.parse_codex_json_output(raw_output)
-        self.events.put(("done", result, output or raw_output, session_id, raw_output))
 
     def cancel_run(self):
+        if self.selecting_skills:
+            self.status.set('Cancelando a análise inteligente...')
+            self.cancel_button.configure(state='disabled')
+            self.start_job('Cancelamento da análise', self.selection_supervisor.cancel, lambda _: None)
+            return
         if not self.running:
             return
-        if not messagebox.askyesno("Cancelar execução", "Encerrar a execução atual? Os arquivos já criados serão preservados na pasta da tarefa."):
+        if not messagebox.askyesno('Cancelar execução', 'Encerrar a execução atual? Os arquivos parciais serão preservados.'):
             return
         self.cancel_requested = True
-        if not self.active_process:
-            self.status.set("Cancelamento solicitado; aguardando a preparação encerrar.")
-            self.phase_var.set("Encerrando preparação")
-            self.cancel_button.configure(state="disabled")
-            return
-        try:
-            self.active_process.terminate()
-            self.status.set("Cancelamento solicitado; aguardando o Codex encerrar.")
-            self.phase_var.set("Encerrando execução")
-            self.cancel_button.configure(state="disabled")
-        except OSError as exc:
-            messagebox.showerror("Cancelar execução", f"Não foi possível encerrar o processo: {exc}")
+        self.supervisor.cancelled.set()
+        self.phase_var.set('Cancelando execução')
+        self.cancel_button.configure(state='disabled')
+        self.start_job('Cancelamento', self.supervisor.cancel, lambda _: None)
+
 
     def poll_events(self):
         pending_logs = []
@@ -3811,7 +3598,10 @@ class GateApp(tk.Tk):
             while processed < 250:
                 event = self.events.get_nowait()
                 processed += 1
-                if event[0] == "log":
+                if event[0] == 'job_done':
+                    flush_logs()
+                    self.finish_job(event)
+                elif event[0] == "log":
                     pending_logs.append(event[1])
                 elif event[0] == "phase":
                     flush_logs()
@@ -3843,176 +3633,41 @@ class GateApp(tk.Tk):
             except tk.TclError:
                 pass
 
-    def finish_run(self, returncode, output, session_id=None, raw_output=""):
-        self.note_startup_step(f"Processo encerrado com código {returncode}")
-        self.running = False
-        self.active_process = None
-        if session_id:
-            self.current_session_id = session_id
-        rejected_model = gate.cli_rejected_model(raw_output or output) if returncode else None
-        if rejected_model and raw_output:
-            output = raw_output
-        if rejected_model:
-            self.current_session_id = None
-        compatibility_message = gate.cli_model_compatibility_message(
-            self.cli_executable, rejected_model, self.cli_version) if rejected_model else None
-        rejected_message = self.tr(
-            "O Codex CLI recusou {model}. Confira a versão do CLI, a autenticação e a disponibilidade do modelo nesse cliente. O Gate não altera o modelo autorizado automaticamente.")
-        display_output = (self.tr(compatibility_message) or
-                          rejected_message.format(model=rejected_model.capitalize())
-                          if rejected_model else output)
-        try:
-            self.show_response(display_output, select=True)
-            self.update_idletasks()
-        except Exception as exc:
-            self.note_startup_step(f"Aviso ao mostrar resposta: {type(exc).__name__}: {exc}")
-        try:
-            self.current_token_usage = gate.extract_codex_token_usage(raw_output)
-            self.update_consumption_display()
-            self.set_controls("normal")
-        except Exception as exc:
-            self.note_startup_step(f"Aviso ao restaurar interface: {type(exc).__name__}: {exc}")
-        try:
-            self.refresh_artifacts()
-        except Exception as exc:
-            self.note_startup_step(f"Aviso ao mostrar arquivos: {type(exc).__name__}: {exc}")
-        # Novo recurso: auto-abrir imagens e documentos gerados
-        for path in self.artifacts:
-            if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".pdf"}:
-                try:
-                    os.startfile(path)
-                except OSError:
-                    pass
+    def finish_run(self, returncode, output, session_id=None, raw_output=''):
+        self.phase_var.set('Validando resultados' if not returncode else 'Preservando resultado parcial')
+        self.simple_progress_var.set('Identificando arquivos e verificando a entrega...')
+        self.show_response(output, select=True)
+        task = self.current_followup_request or self.pending['task']
+        cwd = self.cwd
+        before = dict(self.before_files)
+        names = list(self.pending.get('skills', []))
+        def collect():
+            after = gate.snapshot_project_files(cwd)
+            artifacts = [cwd / name for name, meta in after.items() if before.get(name) != meta]
+            installed, issues = [], []
+            if not returncode:
+                enough_space = (not gate.is_portable_mode() or gate.portable_storage_estimate(
+                    gate.directory_size(cwd / 'skill-output'), scan_sizes=False)['sufficient'])
+                if enough_space:
+                    installed, issues = gate.import_generated_skills(task, cwd)
+                else:
+                    issues.append('Sem reserva de espaço para instalar skills. Os arquivos gerados foram preservados na pasta da tarefa.')
+            artifacts.extend(installed)
+            if not returncode:
+                issues += gate.validate_download_outputs(task, artifacts)
+                if gate.is_document_task(task):
+                    documents = [p for p in artifacts if p.suffix.lower() in {'.pdf', '.docx'}]
+                    if not documents:
+                        issues.append('A tarefa pediu um documento, mas nenhum DOCX ou PDF criado ou alterado foi identificado.')
+                    for path in documents:
+                        issues += [f'{path.name}: {issue}' for issue in gate.validate_document_file(path,
+                            gate.should_validate_abnt_citations(task, names), gate.should_validate_citation_reference_links(task, names))]
+            return {'artifacts': artifacts, 'installed': installed, 'validation': issues}
+        def present(data):
+            self._completion_data = data
+            self.present_finished_run(returncode, output, session_id, raw_output)
+        self.start_job('Validação da tarefa', collect, present, exclusive=True)
 
-        if self.execution_started_monotonic is not None:
-            self.execution_duration_seconds = max(
-                1, round(clock.monotonic() - self.execution_started_monotonic))
-        try:
-            self.progress_bar.stop()
-            self.progress_bar.configure(mode="determinate", value=100)
-        except tk.TclError as exc:
-            self.note_startup_step(f"Aviso na barra de progresso: {exc}")
-        self.elapsed_var.set(
-            "Tempo decorrido: " + self.format_duration(self.execution_duration_seconds or 0))
-        self.remaining_var.set("Tempo restante: concluído")
-        self.phase_var.set("Execução finalizada")
-        if returncode:
-            result_label = "Cancelada" if self.cancel_requested else "Falhou"
-            self.status.set(
-                f"Execução {result_label.lower()} (código {returncode}). Consulte o painel de andamento.")
-            self.simple_progress_var.set(
-                "Execução cancelada; os arquivos parciais foram preservados." if self.cancel_requested else "A execução falhou. Consulte os detalhes técnicos para entender o ocorrido.")
-            if self.conversation_record_path:
-                gate.update_execution_record(
-                    self.conversation_record_path,
-                    last_continuation_error=output[-3000:],
-                    last_activity_at=datetime.now().astimezone().isoformat(
-                        timespec="seconds"))
-                self.load_history()
-            else:
-                self.add_history(result_label, output)
-                self.save_execution_record(result_label, [], output)
-            if self.continuation_in_flight and self.pending_question:
-                self.continuation_in_flight = False
-                self.status.set(
-                    "A resposta foi enviada, mas o Codex não concluiu a retomada. "
-                    "Revise e tente novamente quando estiver pronto.")
-                self.simple_progress_var.set(
-                    "A pergunta e sua resposta foram preservadas para uma nova tentativa explícita.")
-                self.show_continuation_window()
-            if self.cancel_requested:
-                return messagebox.showinfo("Execução cancelada", "A execução foi encerrada. Os arquivos parciais permanecem na pasta da tarefa.")
-            if rejected_model:
-                self.status.set(display_output)
-                self.simple_progress_var.set(display_output)
-                return messagebox.showerror("Falha do Codex CLI", display_output)
-            return messagebox.showerror("Falha na execução", output[-3000:] or "O Codex não retornou detalhes.")
-
-        self.continuation_in_flight = False
-        if self.sent_continuation_message:
-            now = datetime.now().astimezone().isoformat(timespec="seconds")
-            self.conversation_turns.extend([
-                {"role": "user", "text": self.sent_continuation_message, "at": now},
-                {"role": "assistant", "text": output, "at": now},
-            ])
-            self.conversation_turns = gate.normalize_conversation_turns(
-                self.conversation_turns)
-            self.sent_continuation_message = ""
-        question = gate.extract_continuation_question(output)
-        if question and self.current_session_id:
-            self.pending_question = question
-            self.continuation_mode = "question"
-            self.last_continuation_answer = ""
-            try:
-                gate.save_continuation_state(self.cwd, self.continuation_state(question))
-            except (OSError, ValueError) as exc:
-                self.append_log(
-                    f"Não foi possível salvar a continuação da tarefa: {exc}\n")
-                self.pending_question = None
-                self.last_continuation_answer = ""
-                self.set_controls("normal")
-                return messagebox.showerror(
-                    "Continuação indisponível",
-                    "O Codex fez uma pergunta, mas o estado da tarefa não pôde ser salvo. "
-                    "A pergunta continua no log técnico.")
-            self.status.set("O Codex aguarda sua resposta para continuar esta mesma tarefa.")
-            self.simple_progress_var.set(
-                "Resposta necessária. A continuação preservará a sessão e a pasta da tarefa.")
-            self.phase_var.set("Aguardando sua resposta")
-            self.add_history("Aguardando resposta", output)
-            self.save_execution_record("Aguardando resposta", [], output)
-            try:
-                # The first save creates the permanent record. Refresh the
-                # recovery state so a restart continues that same record.
-                gate.save_continuation_state(
-                    self.cwd, self.continuation_state(question))
-            except (OSError, ValueError) as exc:
-                self.append_log(
-                    f"O registro foi salvo, mas o estado de retomada não pôde ser atualizado: {exc}\n")
-            self.set_controls("normal")
-            self.show_continuation_window()
-            return
-        if question and not self.current_session_id:
-            self.append_log(
-                "O Codex fez uma pergunta, mas esta versão do CLI não informou o identificador da sessão. "
-                "A pergunta ficou registrada no log e a tarefa não foi retomada automaticamente.\n")
-        self.pending_question = None
-        self.last_continuation_answer = ""
-        gate.clear_continuation_state(self.cwd)
-        self.close_continuation_window()
-        self.set_controls("normal")
-        generated_skills_size = gate.directory_size(self.cwd / "skill-output")
-        if (generated_skills_size and
-                not self.has_portable_capacity(
-                    generated_skills_size,
-                    "instalar as skills geradas por esta tarefa")):
-            installed_skills = []
-            skill_issues = [
-                "As skills geradas foram mantidas na pasta da tarefa, mas não "
-                "foram copiadas para a biblioteca porque falta espaço no pendrive."]
-        else:
-            installed_skills, skill_issues = gate.import_generated_skills(
-                self.current_followup_request or self.pending["task"], self.cwd)
-        for path in installed_skills:
-            self.artifacts.append(path)
-            self.add_artifact_display(path, label="Skill instalada")
-            self.append_log(f"Skill instalada na biblioteca do programa: {path}\n")
-        if installed_skills:
-            self.refresh_skills()
-        validation = skill_issues + self.validate_document_outputs()
-        if validation:
-            self.status.set(
-                "Execução finalizada, mas há itens que precisam de revisão antes de considerar a tarefa concluída.")
-            self.simple_progress_var.set("Resultado gerado, mas precisa de revisão antes de ser aprovado.")
-            self.add_history("Revisão necessária", output, validation)
-            self.save_execution_record(
-                "Revisão necessária", validation, output)
-            return messagebox.showwarning("Validação de documento", "\n".join(validation))
-        self.status.set(
-            "Execução concluída com sucesso. Confira os arquivos e registre a qualidade do resultado.")
-        self.simple_progress_var.set("Concluído. Abra os arquivos gerados e registre sua avaliação do resultado.")
-        self.add_history("Concluída", output)
-        self.save_execution_record("Concluída", [], output)
 
     def save_execution_record(self, status, validation, output):
         try:
@@ -4039,6 +3694,9 @@ class GateApp(tk.Tk):
                 "started_at": self.execution_started_at or "",
                 "duration_seconds": self.execution_duration_seconds,
                 "token_usage": self.current_token_usage,
+                "model_key": self.pending["model"],
+                "pricing": dict(gate.TOKEN_PRICES_USD_PER_MILLION.get(self.pending["model"], {})),
+                "exchange_rates": dict(gate.COST_CURRENCY_RATES),
             })
             aggregate_usage = None
             for metric in turn_metrics:
@@ -4056,8 +3714,9 @@ class GateApp(tk.Tk):
                 "duration_seconds": duration,
                 "status": status,
                 "quality": self.pending.get("quality", "Não avaliado"),
-                "model": f"{self.pending['model'].capitalize()} — {gate.EFFORT_LABELS[self.pending['effort']]}",
+                "model": f"{model_label(self.pending['model'])} — {gate.EFFORT_LABELS[self.pending['effort']]}",
                 "model_key": self.pending["model"],
+                "model_id": gate.MODELS[self.pending["model"]],
                 "effort": self.pending["effort"],
                 "project_folder": self.pending.get("project_folder", ""),
                 "policy": gate.POLICIES.get(policy_key, policy_key),
@@ -4065,6 +3724,7 @@ class GateApp(tk.Tk):
                 "task": self.pending["task"],
                 "skills": self.pending.get("skills", []),
                 "skill_fingerprints": self.pending.get("skill_fingerprints", []),
+                "skill_selection": self.pending.get("skill_selection", {}),
                 "attachments": self.pending.get("staged_attachments", []),
                 "artifacts": artifacts,
                 "validation": validation,
@@ -4082,18 +3742,40 @@ class GateApp(tk.Tk):
                 "token_usage": aggregate_usage,
                 "turn_metrics": turn_metrics,
             }
-            if self.conversation_record_path and self.conversation_record_path.is_file():
-                gate.update_execution_record(self.conversation_record_path, **payload)
-                self.record_note_path = self.conversation_record_path
-            else:
-                self.record_note_path = gate.write_execution_record(payload)
-                self.conversation_record_path = self.record_note_path
-            self.pending["existing_duration"] = duration
-            self.pending["turn_metrics"] = turn_metrics
-            self.load_history()
-        except OSError as exc:
-            self.status.set(self.status.get() +
-                            f" Registro não pôde ser salvo: {exc}")
+            previous = self.conversation_record_path
+            recovery = self.continuation_state(self.pending_question) if status == 'Aguardando resposta' else None
+            workspace = self.cwd
+            def persist():
+                if previous and previous.is_file():
+                    gate.update_execution_record(previous, **payload)
+                    path = previous
+                else:
+                    path = gate.write_execution_record(payload)
+                if recovery:
+                    recovery.update(record_file=str(path), existing_duration=duration, turn_metrics=turn_metrics)
+                    gate.save_continuation_state(workspace, recovery)
+                return path
+            def present(path):
+                self.record_note_path = self.conversation_record_path = path
+                self.pending['existing_duration'] = duration
+                self.pending['turn_metrics'] = turn_metrics
+                self.load_history()
+                self.status.set(f'Registro salvo: {path.name}.')
+                self.phase_var.set(status)
+                if status == 'Concluída' and self.auto_open_outputs_var.get():
+                    candidates=[path for path in self.artifacts if path.suffix.lower() in {'.pdf','.png','.jpg','.jpeg'}]
+                    for artifact in candidates[:3]:
+                        try:
+                            os.startfile(artifact)
+                        except OSError as exc:
+                            self.status.set(f'Registro salvo; não foi possível abrir {artifact.name}: {exc}')
+                if recovery:
+                    self.show_continuation_window()
+            self.start_job('Salvar registro', persist, present, exclusive=True)
+        except (OSError, ValueError) as exc:
+            self.status.set(f"Registro não pôde ser salvo: {exc}")
+            self.phase_var.set("Falha ao salvar registro")
+            messagebox.showerror("Registro", str(exc))
 
     def validate_document_outputs(self):
         task = self.current_followup_request or self.pending["task"]
@@ -4254,13 +3936,14 @@ class GateApp(tk.Tk):
     def set_controls(self, state):
         def change_state(control, desired):
             try:
-                control.configure(state=desired)
+                control.configure(state="readonly" if desired == "normal" and isinstance(control, ttk.Combobox) else desired)
             except tk.TclError as exc:
                 self.note_startup_step(
                     f"Aviso em controle da interface: {type(exc).__name__}: {exc}")
 
-        for control in (self.choose_button, self.open_folder_button, self.open_gate_data_button, self.backup_button, self.restore_backup_button, self.choose_skill_library_button, self.open_skill_library_button, self.library_refresh_button, self.refresh_button, self.recommend_button, self.run_button, self.schedule_button, self.policy_box, self.model_box, self.legacy_model_box, self.effort_box, self.manual_skills_toggle, self.open_active_skill_button, self.install_active_skill_button, self.add_active_skill_button, self.remove_active_skill_button, self.skill_library_entry, self.skill_search_entry, self.clear_skill_search_button, self.add_attachment_button, self.remove_attachment_button, self.open_attachment_button, self.advanced_mode_toggle, self.template_box, self.browser_research_toggle, self.browser_query_entry):
+        for control in (self.cli_check_button, self.cli_release_button, self.choose_button, self.open_folder_button, self.open_gate_data_button, self.backup_button, self.restore_backup_button, self.choose_skill_library_button, self.open_skill_library_button, self.library_refresh_button, self.refresh_button, self.recommend_button, self.run_button, self.schedule_button, self.policy_box, self.model_box, self.legacy_model_box, self.effort_box, self.manual_skills_toggle, self.open_active_skill_button, self.install_active_skill_button, self.add_active_skill_button, self.remove_active_skill_button, self.skill_library_entry, self.skill_search_entry, self.clear_skill_search_button, self.add_attachment_button, self.remove_attachment_button, self.open_attachment_button, self.advanced_mode_toggle, self.template_box, self.browser_research_toggle, self.browser_query_entry):
             change_state(control, state)
+        change_state(self.language_box, state)
         self._sync_browser_query_state()
         change_state(self.path_entry, state)
         change_state(self.task, state)
@@ -4268,13 +3951,251 @@ class GateApp(tk.Tk):
         change_state(self.attachment_list, state)
         change_state(self.continue_pending_button,
             "normal" if state == "normal" and self.pending_question and
-            self.current_session_id else "disabled")
+            (self.current_session_id or self.pending and self.pending.get("new_session")) else "disabled")
         change_state(self.cancel_button,
-            "normal" if state == "disabled" and self.running else "disabled")
+            "normal" if state == "disabled" and (self.running or self.selecting_skills) else "disabled")
+
+    def present_finished_run(self, returncode, output, session_id=None, raw_output=""):
+        self.note_startup_step(f"Processo encerrado com código {returncode}")
+        self.running = False
+        self.active_process = None
+        if session_id:
+            self.current_session_id = session_id
+            self.pending["new_session"] = False
+        rejected_model = gate.cli_rejected_model(raw_output or output) if returncode else None
+        if rejected_model and raw_output:
+            output = raw_output
+        if rejected_model:
+            self.current_session_id = None
+        compatibility_message = gate.cli_model_compatibility_message(
+            self.cli_executable, rejected_model, self.cli_version) if rejected_model else None
+        rejected_message = self.tr(
+            "O Codex CLI recusou {model}. Confira a versão do CLI, a autenticação e a disponibilidade do modelo nesse cliente. O Gate não altera o modelo autorizado automaticamente.")
+        display_output = (self.tr(compatibility_message) or
+                          rejected_message.format(model=rejected_model.capitalize())
+                          if rejected_model else output)
+        try:
+            self.show_response(display_output, select=True)
+            self.update_idletasks()
+        except Exception as exc:
+            self.note_startup_step(f"Aviso ao mostrar resposta: {type(exc).__name__}: {exc}")
+        try:
+            self.current_token_usage = gate.extract_codex_token_usage(raw_output)
+            self.update_consumption_display()
+            self.set_controls("normal")
+        except Exception as exc:
+            self.note_startup_step(f"Aviso ao restaurar interface: {type(exc).__name__}: {exc}")
+        self.artifacts = self._completion_data['artifacts']
+        self.clear_artifact_display()
+        for path in self.artifacts:
+            self.add_artifact_display(path)
+
+        if self.execution_started_monotonic is not None:
+            self.execution_duration_seconds = max(
+                1, round(clock.monotonic() - self.execution_started_monotonic))
+        try:
+            self.progress_bar.stop()
+            self.progress_bar.configure(mode="determinate", value=0 if returncode else 100)
+        except tk.TclError as exc:
+            self.note_startup_step(f"Aviso na barra de progresso: {exc}")
+        self.elapsed_var.set(
+            "Tempo decorrido: " + self.format_duration(self.execution_duration_seconds or 0))
+        self.remaining_var.set("Tempo restante: finalizado")
+        self.phase_var.set("Falhou" if returncode else "Salvando registro")
+        if returncode:
+            result_label = "Cancelada" if self.cancel_requested else "Falhou"
+            self.status.set(
+                f"Execução {result_label.lower()} (código {returncode}). Consulte o painel de andamento.")
+            self.simple_progress_var.set(
+                "Execução cancelada; os arquivos parciais foram preservados." if self.cancel_requested else "A execução falhou. Consulte os detalhes técnicos para entender o ocorrido.")
+            self.add_history(result_label, output)
+            self.save_execution_record(result_label, [], output)
+            if self.continuation_in_flight and self.pending_question:
+                self.continuation_in_flight = False
+                self.status.set(
+                    "A resposta foi enviada, mas o Codex não concluiu a retomada. "
+                    "Revise e tente novamente quando estiver pronto.")
+                self.simple_progress_var.set(
+                    "A pergunta e sua resposta foram preservadas para uma nova tentativa explícita.")
+                self.show_continuation_window()
+            if self.cancel_requested:
+                return messagebox.showinfo("Execução cancelada", "A execução foi encerrada. Os arquivos parciais permanecem na pasta da tarefa.")
+            if rejected_model:
+                self.status.set(display_output)
+                self.simple_progress_var.set(display_output)
+                return messagebox.showerror("Falha do Codex CLI", display_output)
+            return messagebox.showerror("Falha na execução", output[-3000:] or "O Codex não retornou detalhes.")
+
+        self.continuation_in_flight = False
+        if self.sent_continuation_message:
+            now = datetime.now().astimezone().isoformat(timespec="seconds")
+            self.conversation_turns.extend([
+                {"role": "user", "text": self.sent_continuation_message, "at": now},
+                {"role": "assistant", "text": output, "at": now},
+            ])
+            self.conversation_turns = gate.normalize_conversation_turns(
+                self.conversation_turns)
+            self.sent_continuation_message = ""
+        question = gate.extract_continuation_question(output)
+        if question and self.current_session_id:
+            self.pending_question = question
+            self.continuation_mode = "question"
+            self.last_continuation_answer = ""
+            try:
+                gate.save_continuation_state(self.cwd, self.continuation_state(question))
+            except (OSError, ValueError) as exc:
+                self.append_log(
+                    f"Não foi possível salvar a continuação da tarefa: {exc}\n")
+                self.pending_question = None
+                self.last_continuation_answer = ""
+                self.set_controls("normal")
+                return messagebox.showerror(
+                    "Continuação indisponível",
+                    "O Codex fez uma pergunta, mas o estado da tarefa não pôde ser salvo. "
+                    "A pergunta continua no log técnico.")
+            self.status.set("O Codex aguarda sua resposta para continuar esta mesma tarefa.")
+            self.simple_progress_var.set(
+                "Resposta necessária. A continuação preservará a sessão e a pasta da tarefa.")
+            self.phase_var.set("Aguardando sua resposta")
+            self.add_history("Aguardando resposta", output)
+            self.save_execution_record("Aguardando resposta", [], output)
+            if not self.busy_operation:
+                self.set_controls("normal")
+                self.show_continuation_window()
+            return
+        if question and not self.current_session_id:
+            self.append_log(
+                "O Codex fez uma pergunta, mas esta versão do CLI não informou o identificador da sessão. "
+                "A pergunta ficou registrada no log e a tarefa não foi retomada automaticamente.\n")
+        self.pending_question = None
+        self.last_continuation_answer = ""
+        gate.clear_continuation_state(self.cwd)
+        self.close_continuation_window()
+        self.set_controls("normal")
+        installed_skills = self._completion_data['installed']
+        validation = self._completion_data['validation']
+        if installed_skills:
+            self.refresh_skills()
+        if validation:
+            self.phase_var.set("Revisão necessária")
+            self.status.set(
+                "Execução finalizada, mas há itens que precisam de revisão antes de considerar a tarefa concluída.")
+            self.simple_progress_var.set("Resultado gerado, mas precisa de revisão antes de ser aprovado.")
+            self.add_history("Revisão necessária", output, validation)
+            self.save_execution_record(
+                "Revisão necessária", validation, output)
+            return messagebox.showwarning("Validação de documento", "\n".join(validation))
+        self.phase_var.set("Salvando registro")
+        self.status.set(
+            "Execução concluída com sucesso. Confira os arquivos e registre a qualidade do resultado.")
+        self.simple_progress_var.set("Concluído. Abra os arquivos gerados e registre sua avaliação do resultado.")
+        self.add_history("Concluída", output)
+        self.save_execution_record("Concluída", [], output)
+
+
+    def start_job(self, label, work, complete, exclusive=False):
+        self.pending_jobs += 1
+        if exclusive:
+            self.exclusive_jobs += 1
+            self.busy_operation = True
+            self.set_controls('disabled')
+        def run():
+            try:
+                result = work()
+                error = None
+            except Exception as exc:
+                result, error = None, exc
+            self.events.put(('job_done', label, complete, result, error, exclusive))
+        threading.Thread(target=run, daemon=True).start()
+
+    def finish_job(self, event):
+        _, label, callback, result, error, exclusive = event
+        self.pending_jobs -= 1
+        if exclusive:
+            self.exclusive_jobs -= 1
+            self.busy_operation = self.exclusive_jobs > 0
+        if error:
+            if label == 'Seleção inteligente':
+                self.selecting_skills = False
+                self.pending = None
+                self.status.set(f'Análise não concluída: {error}. Pode tentar novamente ou usar a seleção manual.')
+                self.simple_progress_var.set('A seleção inteligente não foi concluída.')
+            if label == 'Consultar novas versões':
+                self.cli_status_var.set('Consulta indisponível. Use Download / atualização oficial para conferir as versões.')
+            if label == 'Salvar registro':
+                self.phase_var.set('Falha ao salvar registro')
+                self.status.set(f'Resultado disponível, mas o registro não foi salvo: {error}')
+            if label in {'Preparação da tarefa', 'Validação da tarefa'}:
+                self.running = False
+                self.phase_var.set('Cancelada' if self.cancel_requested else 'Falhou')
+                self.simple_progress_var.set(str(error))
+            if not self.running and not self.busy_operation:
+                self.set_controls('normal')
+            messagebox.showerror(label, str(error))
+            return
+        try:
+            callback(result)
+        finally:
+            if not self.running and not self.busy_operation:
+                self.set_controls('normal')
+                if hasattr(self, '_deferred_cli_status'):
+                    result = self._deferred_cli_status
+                    del self._deferred_cli_status
+                    self.apply_cli_status(result)
+
+    def check_cli_updates(self):
+        self.cli_status_var.set('Consultando changelog oficial...')
+        def present(latest):
+            version = '.'.join(map(str, latest))
+            installed = '.'.join(map(str, self.cli_version)) if self.cli_version else 'não identificada'
+            message = f'CLI instalado: {installed}. Última versão estável no changelog: {version}.'
+            if self.cli_version and latest > self.cli_version:
+                message += ' Atualização disponível: use Download / atualização oficial.'
+            self.cli_status_var.set(message)
+        self.start_job('Consultar novas versões', latest_cli_release, present)
+
+    def sync_decision_settings(self, _event=None):
+        if not self.pending:
+            return
+        key = model_key(self.model_var.get())
+        effort_label = gate_i18n.source_text(self.effort_var.get(), self.language)
+        effort = next((k for k, v in gate.EFFORT_LABELS.items() if v == effort_label), None)
+        policy = gate_i18n.source_text(self.policy_var.get(), self.language)
+        if key not in gate.MODELS or not effort or policy not in gate.POLICIES:
+            return
+        self.pending.update(model=key, effort=effort, policy=policy)
+        self.decision_model_card_var.set(model_label(key))
+        self.decision_effort_card_var.set(self.tr(gate.EFFORT_LABELS[effort]))
+        assessment = self.pending.get('assessment')
+        if assessment:
+            recommended = model_label(str(self.pending.get('recommended_model', self.pending['model'])))
+            recommended_effort = self.pending.get('recommended_effort', self.pending['effort'])
+            self.decision_text.set(f"Recomendado: {recommended} — {gate.EFFORT_LABELS[recommended_effort]}.\n"
+                                   f"Selecionado: {model_label(key)} — {gate.EFFORT_LABELS[effort]}.\n"
+                                   + gate.decision_summary(assessment, policy))
+
+    def save_draft(self):
+        gate.save_app_settings({'draft': {'task':self.task.get('1.0', tk.END).strip(),
+            'attachments':[str(p) for p in self.attachments], 'root':self.path_var.get()}})
+
+    def copy_response(self):
+        self.clipboard_clear()
+        self.clipboard_append(self.last_response_text)
+
+    def export_response(self):
+        destination = filedialog.asksaveasfilename(defaultextension='.md', filetypes=[('Markdown','*.md'),('Texto','*.txt')])
+        if destination:
+            atomic_write_text(Path(destination), self.last_response_text)
+
+    def open_diagnostics(self):
+        if self.pending and self.pending.get('project_folder'):
+            folder = gate.gate_dir(Path(self.pending['project_folder']))
+            os.startfile(folder)
 
     def on_close(self):
-        if self.running or self.selecting_skills:
+        if self.running or self.selecting_skills or self.busy_operation:
             return messagebox.showinfo("Atividade em andamento", "Aguarde a análise ou a execução terminar antes de fechar o Codex Model Gate.")
+        self.save_draft()
         self.destroy()
 
 

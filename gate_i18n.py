@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import locale
+from gate_manuals import MANUALS
 import re
 
 
@@ -277,307 +278,48 @@ ES.update({
     "A tarefa ou os anexos mudaram. Clique em Analisar tarefa novamente antes de executar.": "La tarea o los archivos adjuntos cambiaron. Seleccione Analizar tarea de nuevo antes de ejecutar.",
 })
 
+EN.update({
+    'Download / atualização oficial': 'Official download / update',
+    'Consultar novas versões': 'Check for new releases',
+    'Verificando versão do Codex CLI...': 'Checking the Codex CLI version...',
+    'Consultando changelog oficial...': 'Checking the official changelog...',
+    'Consulta indisponível. Use Download / atualização oficial para conferir as versões.': 'Update check unavailable. Use Official download / update to check releases.',
+    'Copiar resposta': 'Copy response', 'Exportar resposta...': 'Export response...',
+    'Abrir pasta da tarefa': 'Open task folder', 'Diagnósticos': 'Diagnostics',
+    'Recalcular com tarifas e câmbio atuais': 'Recalculate with current prices and exchange rates',
+    'Sol 6 (anterior)': 'Sol 6 (previous)', 'Preparando tarefa': 'Preparing task',
+    'Salvando registro': 'Saving record', 'Falha ao salvar registro': 'Record save failed',
+    'Abrir até 3 arquivos após validação': 'Open up to 3 files after validation',
+    'Diagnóstico': 'Diagnostics',
+    'Aguarde a atividade terminar antes de alterar o idioma.': 'Wait for the current activity to finish before changing language.',
+    'Verificando a versão do CLI. Aguarde o resultado antes de executar.': 'Checking the CLI version. Wait for the result before running.',
+    'A tarefa ou os anexos mudaram. Analise novamente.': 'The task or attachments changed. Analyze again.',
+    'ESTIMATIVA — Não é uma cobrança da sua conta. Usa tokens registrados e tarifas/câmbio salvos em cada turno. Registros antigos usam referências atuais; recalcular é opcional.': 'ESTIMATE — This is not an account charge. It uses recorded tokens and prices/exchange rates saved per turn. Older records use current references; recalculation is optional.',
+})
+ES.update({
+    'Download / atualização oficial': 'Descarga / actualización oficial',
+    'Consultar novas versões': 'Consultar nuevas versiones',
+    'Verificando versão do Codex CLI...': 'Comprobando la versión del Codex CLI...',
+    'Consultando changelog oficial...': 'Consultando el changelog oficial...',
+    'Consulta indisponível. Use Download / atualização oficial para conferir as versões.': 'Consulta no disponible. Use Descarga / actualización oficial para comprobar las versiones.',
+    'Copiar resposta': 'Copiar respuesta', 'Exportar resposta...': 'Exportar respuesta...',
+    'Abrir pasta da tarefa': 'Abrir carpeta de la tarea', 'Diagnósticos': 'Diagnósticos',
+    'Recalcular com tarifas e câmbio atuais': 'Recalcular con tarifas y cambio actuales',
+    'Sol 6 (anterior)': 'Sol 6 (anterior)', 'Preparando tarefa': 'Preparando tarea',
+    'Salvando registro': 'Guardando registro', 'Falha ao salvar registro': 'Error al guardar el registro',
+    'Abrir até 3 arquivos após validação': 'Abrir hasta 3 archivos tras validación',
+    'Diagnóstico': 'Diagnóstico',
+    'Aguarde a atividade terminar antes de alterar o idioma.': 'Espere a que termine la actividad antes de cambiar el idioma.',
+    'Verificando a versão do CLI. Aguarde o resultado antes de executar.': 'Comprobando la versión del CLI. Espere el resultado antes de ejecutar.',
+    'A tarefa ou os anexos mudaram. Analise novamente.': 'La tarea o los adjuntos cambiaron. Analice de nuevo.',
+    'ESTIMATIVA — Não é uma cobrança da sua conta. Usa tokens registrados e tarifas/câmbio salvos em cada turno. Registros antigos usam referências atuais; recalcular é opcional.': 'ESTIMACIÓN — No es un cobro de su cuenta. Utiliza tokens registrados y tarifas/cambio guardados por turno. Los registros antiguos usan referencias actuales; recalcular es opcional.',
+})
 PACKS = {"pt-BR": {}, "en": EN, "es": ES}
 
-MANUALS = {
-    "en": """# Codex Model Gate Guide
-
-The Gate organizes tasks run by Codex CLI. It helps you describe the work, review the recommended model and skills, approve execution, and find the results later.
-
-## Basic workflow
-
-1. Write the task in the **Task** tab and attach files if needed.
-2. Select **Analyze task** to review the model, reasoning level, risk, and skills.
-3. Select **Confirm and run** after checking the destination and decision.
-4. Read the result in the **Response** tab. Web links are clickable.
-5. Use **Previous tasks** to search, review, or continue a saved conversation.
-
-## Language
-
-Use **Language** at the top of the Task tab. The choice is saved in the Gate settings and included in backups. Changing it restarts the application so the complete interface is loaded consistently.
-
-## Safety and data
-
-The Gate never changes the language of your task or answer automatically. Each task uses its own folder. Review the model, skills, attachments, and destination before approval. Use **Create backup** to preserve projects, skills, records, and settings.
-""",
-    "es": """# Manual de Codex Model Gate
-
-El Gate organiza las tareas ejecutadas por Codex CLI. Le ayuda a describir el trabajo, revisar el modelo y las skills recomendadas, autorizar la ejecución y encontrar los resultados posteriormente.
-
-## Flujo básico
-
-1. Escriba la tarea en la pestaña **Tarea** y adjunte archivos si es necesario.
-2. Seleccione **Analizar tarea** para revisar el modelo, nivel de razonamiento, riesgo y skills.
-3. Seleccione **Confirmar y ejecutar** después de comprobar el destino y la decisión.
-4. Lea el resultado en la pestaña **Respuesta**. Los enlaces web son clicables.
-5. Use **Tareas anteriores** para buscar, revisar o continuar una conversación guardada.
-
-## Idioma
-
-Use **Idioma** en la parte superior de la pestaña Tarea. La elección se guarda en la configuración del Gate y se incluye en las copias de seguridad. El cambio reinicia la aplicación para cargar toda la interfaz de forma coherente.
-
-## Seguridad y datos
-
-El Gate no cambia automáticamente el idioma de su tarea o respuesta. Cada tarea utiliza su propia carpeta. Revise el modelo, las skills, los adjuntos y el destino antes de autorizar. Use **Crear copia** para conservar proyectos, skills, registros y configuración.
-""",
-}
 
 # Complete manuals: these intentionally mirror every section in the Portuguese
 # guide instead of offering a shortened foreign-language quick start.
-MANUALS["en"] = """# Codex Model Gate Guide
 
-Codex Model Gate organizes tasks run by Codex CLI. It helps you prepare the request, review the recommended model and skills, approve execution, and find the results later.
-
-## Start here
-
-1. In the **Task** tab, choose where projects will be stored.
-2. Write what you want to do and, if necessary, use **Attach files...**.
-3. Select **Analyze task**. The Gate recommends a model, reasoning level, and skills.
-4. Review the decision. You may adjust the skill selection before continuing.
-5. Select **Confirm and run**. Files are kept in the task's exclusive folder.
-6. When finished, review the result, open the created files, and record their quality.
-
-### Simple mode and task templates
-
-The application opens in **simple mode**, with the essential controls for preparing, analyzing, and running a task. Directly below the description, web research, and attachments are **1. Analyze task** and **2. Confirm and run**, followed by the model, reasoning level, risk, and skill summary. The detailed library and monitoring area appear farther down. Use `Ctrl+Enter` to analyze and `Ctrl+Shift+Enter` to run. Enable **Show advanced options** when you want to choose the policy, model, reasoning level, or skill library, or inspect technical execution details.
-
-The buttons use the interface's existing colors to show progress: **Analyze task** turns blue when a description is ready. After analysis it turns green with a checkmark, and **Confirm and run** turns blue. Once execution is started, the second button also turns green. Changing the description or attachments returns the controls to the preparation state; analyze again before running.
-Selecting **Confirm and run** opens the approval dialog over the main window. The Codex CLI version check runs in the background without opening another window.
-
-Under **Start from a template**, choose a starting point for creating a document, analyzing a file, generating an image, researching references, or organizing data. Replace the fields in brackets with your context before analyzing.
-
-## Model and reasoning level
-
-The Gate recommends the main GPT-6 models according to the **complexity of the requested result**, not the number of words in the request. **Luna — Low** handles bounded lookups and transformations, such as a public date or current exchange rate, with an appropriate source when needed. **Sol — Low** handles explicit fact checks; **Sol — Medium/High** handles research, synthesis, creation, specialized judgment, and work with meaningful impact. **Astra — Medium/High** handles broad deliverables with interdependent steps and decisions, with more review for high-impact work. The assessment also shows risk, tool use, specialization, verifiability, and ambiguity. The final model and effort choice remains with the user in advanced options. Legacy models are in the separate **Legacy model** selector for manual use; older Terra records remain supported.
-
-**Low** is for quick requests; **Medium** balances planning and speed; **High** and **Extra high** serve difficult work involving several steps, sources, or decisions. **Maximum** is not recommended automatically. **Ultra** is not available for the GPT-6 family and is not recommended automatically; choose an effort supported by the selected model.
-
-Requests to explain how a technical mechanism works, including downconversion and upconversion, receive at least **Sol — Medium** in Portuguese, English, or Spanish. The Gate considers the explanation required even when the question is short.
-
-### Interface responsiveness
-
-When a task completes, the Gate opens the answer before updating files and history. The usage dashboard reuses records already loaded, and the duration estimate uses the same data. The Codex CLI version checked in the current session is reused at authorization, and progress messages are grouped to keep the window responsive. These changes reduce interface delays; model response time still depends on the task, the selected effort, and Codex CLI.
-
-### Usage and estimated cost
-
-For conversations with several responses, the task record lists time and tokens for each execution separately. The **Usage** tab sums the tokens reported by those executions. Older records without this breakdown retain the available total.
-
-After a task runs, the Gate displays the input, cached input, output, and reasoning tokens reported by Codex CLI, plus the estimated cost for the selected model. Costs use two decimal places and the currency associated with the interface language. If the CLI does not report usage, the estimate is unavailable. This is an estimate, not a charge: it excludes tool fees, special modalities, long-context and priority processing, and exchange-rate changes beyond the Gate's reference rate.
-
-Standard text-token reference prices in USD per million tokens, for prompts up to 272K input tokens: GPT-6 Luna, input $0.10, cached input $0.01, output $0.50; GPT-6 Sol, $2, $0.20, and $10; GPT-6 Astra, $10, $1, and $50. Legacy GPT-5.6 Terra remains available for manual selection and retains the rates configured in the Gate: input $2, cached input $0.20, and output $12. Prices can change; see the [official OpenAI pricing table](https://developers.openai.com/api/docs/pricing).
-
-## Skills
-
-Leave automatic selection enabled for the Gate to choose skills related to the task. To choose them yourself, enable **Use manual selection** and search using part of a skill's name; you do not need to type the complete name. Skills shown under **Skills recommended for this task** are the ones that will be used for that task. Removing one from the task does not delete it from the library.
-
-For automatic selection, the Gate uses explicit rules to recognize the requested action and result and checks which skills for that purpose are available in the library. It may choose more than one when each covers a concrete part of the result. There is no extra Codex semantic-analysis call or score based on similar words in skill names. A question about today's dollar exchange rate or an election date uses reliable-source research; changing a corporate card uses the dedicated business-card skill; finding scientific papers uses reference search and, when useful, a subject specialist such as nanofluids. If the result cannot be recognized confidently, no domain skill is suggested; use manual selection to choose one. The built-in orchestration skill organizes the chosen skills during execution.
-
-Questions about election poll results, such as first and second round presidential polls, also call for reliable sources. Here “research” or “polls” does not mean scientific research; nanofluid and other laboratory skills are not selected.
-
-When you install a skill manually or through a skill-creation task, the Gate updates its memory immediately. It appears in the library; automatic selection requires its purpose to match a recognized result route. Otherwise, choose it manually. If two versions have the same name, the most recently installed version is used in the catalog.
-
-A skill author can declare its purposes in the optional `gate_outcomes` field of `SKILL.md`, using the route codes documented in the project guide. This lets a new skill join an existing route without comparing similar words.
-
-When using **Schedule task...**, enter the local date and time as `YYYY-MM-DD HH:MM`. The Gate requests your confirmation at the scheduled time.
-
-## Previous tasks and files
-
-In **Previous tasks**, use **Search tasks** to locate an execution by request, topic, response, or file name. Search updates as you type, ignores capitalization and accents, and is also available with `Ctrl+F`. Use the additional filters to restrict results by date, model, status, or skill. Select a task and open **Files** to see only its files. Displayed dates and the date filter use the interface format and local time; the record file keeps its original timestamps for auditing.
-
-The area to the right of search shows only the number of displayed records. Review token and cost totals in **Usage**.
-
-Tasks run by this version preserve the Codex session. Select one and use **Continue conversation** to request adjustments, review the delivery, or continue the analysis in the same session and folder. In **Previous tasks**, all four filters share one row. The action bar shows **Refresh records**, **Continue conversation**, and **Rate record**. **List** contains unrated records and the report; **Open / export** contains text view, TXT/PDF export, and the records folder; **.gate packages** contains task export and import. Every function remains available. The bar stays on one row and scrolls horizontally when needed. The task list and **Selected record details** divide the available height equally. Each new message is added to the task record. Older records without a session identifier remain readable, but cannot retroactively restore context that was not saved.
-
-## Usage
-
-Open **Usage** to review estimated costs and aggregated tokens for today, the last seven days, this month, this year, or all time. Select **Custom** to enter a start and end date in `YYYY-MM-DD` format. Filter by all models or Luna, Terra, Sol, and Astra. The table identifies the model and shows tasks, input, cache, output, reasoning, and cost by hour, day, or month depending on the selected period. English displays dates as `YYYY-MM-DD`, uses commas for thousands, and uses a decimal point for monetary values. Choose the interface-language currency automatically or select USD, BRL, or EUR. Use **Export CSV...** to save the displayed rows for a spreadsheet.
-
-In the **Breakdown** table, headers and values are centered within each column, including model, tokens, and estimated cost.
-
-The notice beside the summary explains that the total is an estimate, not an account charge. The dashboard aggregates local records with token usage and an identifiable model; it shows how many records fall in the period, how many are included, and how many are excluded for missing data. Costs use the prices and reference exchange rate configured in the Gate, have two decimal places, and can be recalculated with current rates: records store the model and tokens, not an invoice or the price in effect when the task ran.
-
-## Links in responses
-
-Page addresses shown in a response appear as blue, underlined hyperlinks. Select one to open it in the default Windows browser. The Gate recognizes both plain URLs and titled Markdown links, and only opens valid `http` or `https` addresses.
-
-## Controlled web research
-
-For public dates, election polls, or tasks using the reliable sources skill, the Gate enables Codex live web search. The task starts directly in Codex, which can consult current sources and cite their links. Check dates and figures against the original source before relying on them.
-
-Technical mechanism explanations also enable live web search. For every task, the Gate instructs Codex to open each cited page, confirm that it directly supports the claim, and use a specific section when possible. This rule applies automatically. Verification depends on access to the page during execution; if access fails, Codex should state the limitation instead of inventing a citation.
-
-Select **Allow Gate visual browser (Edge)** to make a visible, isolated browser available to Codex. Checking the box does not start a search: the task starts in Codex, and Edge opens only if Codex chooses the browser tool. The session does not automatically reuse your personal logins or history. Without the box checked, **Edge search terms (optional)** is disabled and has no effect on the task.
-
-This field accepts **search words**, for example `Mexico election calendar 2027`. They are a suggestion, not a command: Codex may use different terms or may not use Edge. If left blank, the task description is sent as the suggested query. When used, the visual browser searches Google and Bing and can open a page only if it appears among the search results. Pasting `https://example.com/article` into this field searches for that URL as text; it **does not open the page directly**. To request analysis of a specific link, put it in the main task description, for example `Read and summarize https://example.com/article`. Codex can try to access the page with the available tools and should say if it cannot. Bounded questions about election or sports competition dates receive Luna — Low and live web search; requests for comparison or analysis are rated by the complexity of the result.
-
-When enabled, the Gate offers its visual browser to Codex through local MCP tools. Codex live web search works independently of this option.
-
-## Response screen
-
-When a task finishes, the Gate automatically opens **Response**, including in simple mode. The technical panel remains limited to advanced options, but you never need to enable it merely to read the final response.
-
-## Backup and data
-
-Use **Create backup...** in the Task tab to save projects, skills, records, and settings in a ZIP file. New backups use a compact internal structure to avoid Windows long-path errors. The `backup-manifest.json` file inside the ZIP maps each item to its original path.
-
-### Full ZIP backup and `.gate` task package
-
-The **full ZIP backup** and the **`.gate` package** serve different purposes. The ZIP created with **Create backup...** contains Gate data: projects, the skill library, records, and settings. Use it for a general backup or to migrate these data to another computer. To restore it, select **Restore backup...**, choose the ZIP, and review the file and category preview. Choose **Yes** to replace files that match the backup; **No** to preserve current files and restore items under alternate names; **Cancel** to stop. Files outside the backup are never removed. Restoring settings from another computer may require restarting the Gate.
-
-The **`.gate` package** contains only one selected task: its record and files in its task folder, such as attachments and outputs. It does not include the full library, settings, or other projects and records. In **Previous tasks**, select the task and choose **Export task as package...**. On the other installation, choose **Import `.gate` package...**. The Gate restores the files in a dedicated folder and creates a local record. Then analyze the imported task to start a new conversation with that context. The package does not transfer the authenticated session or original conversation identifier, so it cannot resume the previous session. It can also serve as an isolated portable copy of one task.
-
-To migrate to another computer, install and open the Gate, then select **Restore backup...**. Choose the ZIP copied from the previous computer. If the new computer has no data, choose **Yes** to restore normally. If it already contains data you want to preserve, choose **No**: the Gate keeps current files and adds restored files with a restoration suffix.
-
-Application data is stored in a dedicated Gate folder. **Open Gate data** displays that folder in File Explorer. Normal application updates preserve this data.
-
-## Codex CLI
-
-The Gate needs Codex CLI installed and authenticated to run tasks. The **Codex CLI** area shows its status and provides installation instructions. The Gate looks for the executable both on PATH and in the Windows Codex app installation. You can still analyze and organize a task without the CLI, but you cannot run it. **Decision ready** means analysis is complete and execution still needs approval; it does not mean the model has answered. After **2. Confirm and run**, watch for **Codex started** and open **Response** when it finishes. If the CLI cannot be found, the task does not start and the screen explains why.
-
-If preparation or the interface fails, the Gate shows an error instead of leaving the task waiting indefinitely. For diagnosis, open the task folder and read `.codex-model-gate/startup-status.txt`; interface errors are also recorded in `gui-error.txt`. Creating a folder or confirming approval alone does not prove that Codex started.
-
-Version 2.6.5 corrects the start and duration clock. After approving a new task or continuing a conversation, look for **Codex started** before treating the process as started.
-
-The Codex app model picker and Codex CLI may be on different versions. GPT-6 Sol and Luna entered the CLI model catalog in version 0.156.1. If Gate finds an older CLI, it displays the version and prevents starting a Sol or Luna task until it is updated. Select **Update Codex CLI...** to open the official installer in PowerShell, then select **Check again**. A CLI rejection does not prove that the model is unavailable in your account; Gate keeps its original recommendation. If an updated CLI still rejects a model, check authentication, availability in that client, and the error message. Gate records the failure and never changes your approved model automatically.
-
-## Language
-
-Use **Language** at the top of the Task tab. The choice is saved in Gate settings, included in backups, and stored on the drive in the portable edition. Changing the language restarts the application to load the complete interface consistently. The interface language does not automatically change the language of your task or Codex response.
-
-## Tips
-
-- State a clear desired result, for example: “create a PDF report with these sections.”
-- Review attachments, skills, and destination folder before approval.
-- If Codex asks a question, use **Answer pending question** to keep the same task and context.
-- The Gate does not delete files produced when an execution is cancelled; open the task folder to review what was already created.
-"""
-
-MANUALS["es"] = """# Manual de Codex Model Gate
-
-Codex Model Gate organiza las tareas ejecutadas por Codex CLI. Le ayuda a preparar la solicitud, revisar el modelo y las skills recomendadas, autorizar la ejecución y encontrar los resultados posteriormente.
-
-## Comience aquí
-
-1. En la pestaña **Tarea**, elija dónde se guardarán los proyectos.
-2. Escriba lo que desea hacer y, si es necesario, use **Adjuntar archivos...**.
-3. Seleccione **Analizar tarea**. El Gate recomienda un modelo, nivel de razonamiento y skills.
-4. Revise la decisión. Puede ajustar la selección de skills antes de continuar.
-5. Seleccione **Confirmar y ejecutar**. Los archivos se guardan en la carpeta exclusiva de la tarea.
-6. Al terminar, revise el resultado, abra los archivos creados y registre su calidad.
-
-### Modo simple y plantillas de tareas
-
-El programa se abre en **modo simple**, con los controles esenciales para preparar, analizar y ejecutar una tarea. Justo debajo de la descripción, la búsqueda web y los adjuntos aparecen **1. Analizar tarea** y **2. Confirmar y ejecutar**, seguidos del resumen del modelo, nivel, riesgo y skills. La biblioteca detallada y el seguimiento aparecen más abajo. Use `Ctrl+Enter` para analizar y `Ctrl+Shift+Enter` para ejecutar. Active **Mostrar opciones avanzadas** cuando quiera elegir la política, el modelo, el nivel, la biblioteca de skills o consultar los detalles técnicos de la ejecución.
-
-Los botones usan los colores existentes de la interfaz para mostrar el progreso: **Analizar tarea** se vuelve azul cuando hay una descripción preparada. Tras el análisis se vuelve verde con una marca de confirmación y **Confirmar y ejecutar** se vuelve azul. Al iniciar la ejecución, el segundo botón también se vuelve verde. Si cambia la descripción o los archivos adjuntos, los controles vuelven al estado de preparación; analice de nuevo antes de ejecutar.
-
-Al seleccionar **Confirmar y ejecutar**, el cuadro de autorización se abre sobre la ventana principal. La consulta de versión de Codex CLI se realiza en segundo plano, sin abrir otra ventana.
-
-En **Comenzar con una plantilla**, elija un punto de partida para crear un documento, analizar un archivo, generar una imagen, buscar referencias u organizar datos. Sustituya los campos entre corchetes por su contexto antes de analizar.
-
-## Modelo y nivel de razonamiento
-
-El Gate recomienda los modelos principales de la familia GPT-6 según la **complejidad del resultado solicitado**, no por la cantidad de palabras. **Luna — Bajo** atiende consultas y transformaciones delimitadas, como una fecha pública o un tipo de cambio actual, con una fuente adecuada cuando sea necesario. **Sol — Bajo** atiende verificaciones explícitas de hechos; **Sol — Medio/Alto** atiende investigación, síntesis, creación, criterio especializado y trabajos de impacto relevante. **Astra — Medio/Alto** atiende entregas amplias con etapas y decisiones interdependientes, con mayor revisión si el impacto es alto. La evaluación también muestra riesgo, herramientas, especialización, verificabilidad y ambigüedad. La elección final del modelo y nivel sigue en manos del usuario en las opciones avanzadas. Los modelos heredados aparecen en un selector separado **Modelo heredado** para uso manual; los registros antiguos de Terra siguen disponibles.
-
-**Bajo** es para solicitudes rápidas; **Medio** equilibra planificación y velocidad; **Alto** y **Extra alto** sirven para trabajos difíciles con varias etapas, fuentes o decisiones. **Máximo** no se recomienda automáticamente. **Ultra** no está disponible para la familia GPT-6 y no se recomienda automáticamente: elija un nivel compatible con el modelo seleccionado.
-
-### Agilidad de la interfaz
-
-Al concluir una tarea, el Gate abre la respuesta antes de actualizar los archivos y el historial. El panel de consumo reutiliza los registros ya cargados, y la estimación de duración usa los mismos datos. La versión del Codex CLI comprobada en la sesión se reutiliza al autorizar, y los mensajes de progreso se agrupan para mantener la ventana ágil. Estas mejoras reducen las esperas de la interfaz; el tiempo de generación del modelo depende de la tarea, el nivel elegido y Codex CLI.
-
-### Consumo y costo estimado
-
-En conversaciones con varias respuestas, el registro muestra el tiempo y los tokens de cada ejecución por separado. La pestaña **Consumo** suma los tokens informados por esas ejecuciones. Los registros antiguos sin este desglose conservan el total disponible.
-
-Después de la ejecución, el Gate muestra los tokens de entrada, entrada en caché, salida y razonamiento informados por Codex CLI, además del costo estimado para el modelo seleccionado. El importe se presenta con dos decimales y en la moneda asociada al idioma de la interfaz. Si el CLI no informa el uso, la estimación no está disponible. Es una estimación, no un cargo: no incluye tarifas de herramientas, modalidades especiales, contexto largo, procesamiento prioritario ni cambios de divisa más allá de la tasa de referencia del Gate.
-
-Precios de referencia estándar para tokens de texto en USD por millón, para solicitudes de hasta 272 mil tokens de entrada: GPT-6 Luna, entrada US$ 0,10, caché US$ 0,01 y salida US$ 0,50; GPT-6 Sol, US$ 2, US$ 0,20 y US$ 10; GPT-6 Astra, US$ 10, US$ 1 y US$ 50. El modelo heredado GPT-5.6 Terra sigue disponible para selección manual y conserva las tarifas configuradas en el Gate: entrada US$ 2, caché US$ 0,20 y salida US$ 12. Los precios pueden cambiar; consulte la [tabla oficial de precios de OpenAI](https://developers.openai.com/api/docs/pricing).
-
-## Skills
-
-Mantenga activada la selección automática para que el Gate elija las skills relacionadas con la tarea. Para elegirlas usted mismo, active **Usar selección manual** y busque por una parte del nombre; no es necesario escribirlo completo. Las skills mostradas en **Skills recomendadas para esta tarea** son las que se usarán en esa tarea. Quitar una de la tarea no la elimina de la biblioteca.
-
-En la selección automática, el Gate usa reglas explícitas para reconocer la acción y el resultado solicitados y consulta qué skills para esa finalidad están disponibles en la biblioteca. Puede elegir varias cuando cada una cubre una parte concreta del resultado. No hay una llamada adicional de análisis semántico a Codex ni una puntuación por palabras parecidas en los nombres de las skills. Una consulta sobre la cotización actual del dólar o la fecha de unas elecciones usa investigación en fuentes fiables; modificar una tarjeta corporativa usa la skill específica de tarjetas; buscar artículos científicos usa búsqueda de referencias y, cuando sea útil, una especialidad temática como nanofluidos. Si el resultado no se reconoce con seguridad, no se sugiere ninguna skill de dominio; use la selección manual para elegir una. La skill interna de orquestación organiza las skills elegidas durante la ejecución.
-
-Las preguntas sobre resultados de encuestas electorales, como las presidenciales de primera y segunda vuelta, también requieren fuentes fiables. En ese contexto, “investigación” o “encuestas” no significa investigación científica; no se eligen skills de nanofluidos ni de otros temas de laboratorio.
-
-Al instalar una skill manualmente o mediante una tarea de creación, el Gate actualiza su memoria de inmediato. Aparece en la biblioteca; para la selección automática, su finalidad debe corresponder a una ruta de resultado reconocida. En los demás casos, elíjala manualmente. Si hay dos versiones con el mismo nombre, se usa en el catálogo la instalada más recientemente.
-
-Quien crea una skill puede declarar sus finalidades en el campo opcional `gate_outcomes` de `SKILL.md`, usando los códigos de ruta documentados en la guía del proyecto. Así, una skill nueva puede incorporarse a una ruta existente sin comparar palabras parecidas.
-
-Al usar **Programar tarea...**, introduzca la fecha y hora local en formato `DD/MM/AAAA HH:MM`. El Gate solicita su confirmación a la hora prevista.
-
-## Tareas anteriores y archivos
-
-En **Tareas anteriores**, use **Buscar tarea** para localizar una ejecución por solicitud, tema, respuesta o nombre de archivo. La búsqueda se actualiza mientras escribe, ignora diferencias de mayúsculas y acentos y también está disponible con `Ctrl+F`. Use los filtros adicionales para restringir por fecha, modelo, estado o skill. Seleccione una tarea y abra **Archivos** para ver únicamente sus archivos. Las fechas visibles y el filtro de fecha usan `DD/MM/AAAA` y la hora local; el archivo del registro conserva las fechas originales para auditoría.
-
-A la derecha de la búsqueda aparece únicamente la cantidad de registros mostrados. Consulte los totales de tokens y costos en **Consumo**.
-
-Las tareas ejecutadas por esta versión conservan la sesión de Codex. Seleccione una y use **Continuar conversación** para solicitar ajustes, revisar la entrega o continuar el análisis en la misma sesión y carpeta. En **Tareas anteriores**, los cuatro filtros están en una fila. La barra muestra **Actualizar registros**, **Continuar conversación** y **Evaluar registro**. **Lista** agrupa los registros sin evaluar y el informe; **Abrir / exportar** agrupa la lectura, la exportación TXT/PDF y la carpeta; **Paquetes .gate** agrupa exportación e importación de tareas. Todas las funciones siguen disponibles. La barra permanece en una fila y se desplaza horizontalmente cuando es necesario. La lista de tareas y **Detalles del registro seleccionado** dividen por igual la altura disponible. Cada mensaje nuevo se incorpora al registro. Los registros antiguos sin identificador de sesión siguen disponibles para lectura, pero no pueden recuperar de forma retroactiva un contexto que no se guardó.
-
-## Consumo
-
-Abra la pestaña **Consumo** para consultar costos estimados y tokens agregados de hoy, los últimos siete días, este mes, este año o todo el período. Seleccione **Personalizado** para indicar las fechas inicial y final en formato `DD/MM/AAAA`. Filtre por todos los modelos o por Luna, Terra, Sol y Astra. La tabla identifica el modelo y muestra tareas, entrada, caché, salida, razonamiento y costo por hora, día o mes según el período. En español, las fechas usan día/mes/año, los meses se muestran como `MM/AAAA`, los millares llevan punto y los importes usan coma decimal y dos cifras. Elija la moneda automática del idioma de la interfaz o USD, BRL y EUR. Use **Exportar CSV...** para guardar las filas visibles y abrirlas en una hoja de cálculo.
-
-En la tabla **Desglose**, los encabezados y valores están centrados en cada columna, incluidos modelo, tokens y costo estimado.
-
-El aviso junto al resumen indica que el total es una estimación, no un cargo de la cuenta. El panel agrega registros locales con tokens y un modelo identificable; muestra cuántos registros hay en el período, cuántos se incluyen y cuántos se excluyen por falta de datos. Los costos usan los precios y el tipo de cambio de referencia configurados en el Gate, se muestran con dos decimales y pueden recalcularse con las tarifas actuales: los registros guardan modelo y tokens, no una factura ni el precio vigente en la fecha de ejecución.
-
-## Enlaces en las respuestas
-
-Las direcciones de páginas mostradas en una respuesta aparecen como hipervínculos azules y subrayados. Seleccione uno para abrirlo en el navegador predeterminado de Windows. El Gate reconoce URLs escritas directamente y enlaces con título en Markdown, y solo abre direcciones `http` o `https` válidas.
-
-## Búsqueda web controlada
-
-Para fechas públicas, encuestas electorales o tareas que usan la skill de fuentes fiables, el Gate habilita la búsqueda web en directo de Codex. La tarea comienza directamente en Codex, que puede consultar fuentes actuales y citar sus enlaces. Compruebe fechas y cifras en la fuente original antes de utilizarlas.
-
-Las explicaciones de mecanismos técnicos también habilitan la búsqueda web en directo y reciben al menos **Sol — Medio**, incluso con preguntas cortas en portugués, inglés o español. En todas las tareas, el Gate indica a Codex que abra cada página citada, compruebe que respalda directamente la afirmación y utilice una sección específica si es posible. Esta regla se aplica automáticamente. Si no puede acceder a la página, debe indicarlo en vez de inventar la referencia.
-
-Marque **Permitir navegador visual del Gate (Edge)** para poner a disposición de Codex un navegador visible y aislado. Marcar la casilla no inicia una búsqueda: la tarea comienza en Codex y Edge se abre solo si este decide usar la herramienta. La sesión no reutiliza automáticamente sus accesos ni su historial personal. Sin la casilla marcada, **Términos para buscar en Edge (opcional)** queda desactivado y no afecta la tarea.
-
-Este campo acepta **palabras de búsqueda**, por ejemplo `calendario elecciones México 2027`. Son una sugerencia, no una orden: Codex puede usar otros términos o no usar Edge. Si se deja vacío, la descripción de la tarea se envía como consulta sugerida. Cuando se usa, el navegador visual busca en Google y Bing y solo puede abrir páginas que aparezcan entre los resultados. Pegar `https://ejemplo.com/articulo` en este campo busca esa URL como texto; **no abre la página directamente**. Para solicitar el análisis de un enlace específico, inclúyalo en la descripción principal de la tarea, por ejemplo `Lea y resuma https://ejemplo.com/articulo`. Codex puede intentar acceder a la página con las herramientas disponibles y debe avisar si no lo logra. Las consultas delimitadas sobre fechas de elecciones o competiciones deportivas reciben Luna — Bajo y búsqueda web en vivo; las solicitudes de comparación o análisis se califican por la complejidad del resultado.
-
-Cuando está habilitado, el Gate ofrece su navegador visual a Codex mediante herramientas MCP locales. La búsqueda web en vivo de Codex funciona independientemente de esta opción.
-
-## Pantalla de respuesta
-
-Al finalizar una tarea, el Gate abre automáticamente **Respuesta**, incluso en modo simple. El panel técnico continúa limitado a las opciones avanzadas, pero nunca es necesario activarlo solo para leer la respuesta final.
-
-## Copia de seguridad y datos
-
-Use **Crear copia...** en la pestaña Tarea para guardar proyectos, skills, registros y configuración en un archivo ZIP. Las nuevas copias usan una estructura interna compacta para evitar el error de rutas largas de Windows. El archivo `backup-manifest.json` dentro del ZIP relaciona cada elemento con su ruta original.
-
-### Copia completa ZIP y paquete de tarea `.gate`
-
-La **copia completa ZIP** y el **paquete `.gate`** tienen finalidades distintas. El ZIP creado con **Crear copia...** reúne los datos del Gate: proyectos, biblioteca de skills, registros y configuración. Úselo para una copia general o para migrar estos datos a otro equipo. Para restaurarlo, seleccione **Restaurar copia...**, elija el ZIP y revise la vista previa de archivos y categorías. Elija **Sí** para sustituir archivos actuales que coincidan con la copia; **No** para conservar los actuales y restaurar los elementos con nombres alternativos; **Cancelar** para detenerse. Nunca se eliminan archivos ajenos a la copia. Restaurar la configuración de otro equipo puede requerir reiniciar el Gate.
-
-El paquete **`.gate`** contiene solamente una tarea seleccionada: su registro y los archivos de su carpeta de trabajo, como adjuntos y resultados. No incluye la biblioteca completa, la configuración ni otros proyectos y registros. En **Tareas anteriores**, seleccione la tarea y pulse **Exportar tarea como paquete...**. En la otra instalación, use **Importar paquete `.gate`...**. El Gate restaura los archivos en una carpeta exclusiva y crea un registro local. Después, analice la tarea importada para iniciar una conversación nueva con ese contexto. El paquete no transfiere la sesión autenticada ni el identificador de la conversación original; por tanto, no reanuda la sesión anterior. También sirve como copia portátil aislada de una tarea.
-
-Para migrar a otro equipo, instale y abra el Gate y seleccione **Restaurar copia...**. Elija el ZIP copiado del equipo anterior. Si el nuevo equipo aún no tiene datos, elija **Sí** para restaurarlos normalmente. Si ya contiene datos que desea conservar, elija **No**: el Gate mantiene los archivos actuales y añade los restaurados con un sufijo de restauración.
-
-Los datos del programa se guardan en una carpeta propia del Gate. **Abrir datos del Gate** muestra esa carpeta en el Explorador de archivos. Las actualizaciones normales preservan estos datos.
-
-## Codex CLI
-
-El Gate necesita Codex CLI instalado y autenticado para ejecutar tareas. El área **Codex CLI** muestra su estado y ofrece instrucciones de instalación. El Gate busca el ejecutable tanto en PATH como en la instalación de la aplicación Codex en Windows. Puede analizar y organizar una tarea sin el CLI, pero no podrá ejecutarla. **Decisión lista** significa que el análisis terminó y que la ejecución aún necesita autorización; no significa que el modelo haya respondido. Después de **2. Confirmar y ejecutar**, espere la fase **Codex iniciado** y abra **Respuesta** al finalizar. Si no se encuentra el CLI, la tarea no comienza y la pantalla indica el motivo.
-
-Si falla la preparación o la interfaz, el Gate muestra el error en vez de dejar la tarea esperando indefinidamente. Para el diagnóstico, abra la carpeta de la tarea y consulte `.codex-model-gate/startup-status.txt`; los errores de interfaz también se registran en `gui-error.txt`. Crear una carpeta o confirmar la autorización no demuestra, por sí solo, que Codex haya comenzado.
-
-La versión 2.6.5 corrige el cronómetro de inicio y duración. Después de autorizar una tarea nueva o continuar una conversación, compruebe la fase **Codex iniciado** antes de considerar que el proceso comenzó.
-
-El selector de modelos de la aplicación Codex y Codex CLI pueden tener versiones diferentes. GPT-6 Sol y Luna entraron en el catálogo de CLI 0.156.1. Si Gate encuentra un CLI anterior, muestra la versión e impide iniciar una tarea con Sol o Luna hasta actualizarlo. Seleccione **Actualizar Codex CLI...** para abrir el instalador oficial en PowerShell y después seleccione **Comprobar de nuevo**. Un rechazo del CLI no demuestra que el modelo no esté disponible en su cuenta; Gate conserva su recomendación original. Si un CLI actualizado todavía rechaza un modelo, compruebe la autenticación, la disponibilidad en ese cliente y el mensaje de error. Gate registra el fallo y nunca cambia automáticamente el modelo autorizado.
-
-## Idioma
-
-Use **Idioma** en la parte superior de la pestaña Tarea. La elección se guarda en la configuración del Gate, se incluye en las copias y permanece en la unidad de la edición portátil. El cambio de idioma reinicia el programa para cargar la interfaz completa de forma coherente. El idioma de la interfaz no cambia automáticamente el idioma de la tarea o de la respuesta de Codex.
-
-## Consejos
-
-- Indique un resultado deseado claro, por ejemplo: “cree un informe PDF con estas secciones”.
-- Revise los adjuntos, las skills y la carpeta de destino antes de autorizar.
-- Si Codex hace una pregunta, use **Responder pregunta pendiente** para mantener la misma tarea y el mismo contexto.
-- El Gate no elimina los archivos producidos al cancelar una ejecución; abra la carpeta de la tarea para revisar lo que ya se creó.
-"""
 
 
 def normalize_language(value: str | None) -> str:

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(SPECPATH)
 APP_ICON = PROJECT_ROOT / "assets" / "CodexModelGate.ico"
 
 datas = []
@@ -15,6 +15,11 @@ tmp_ret = collect_all('pdfplumber')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('reportlab')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('playwright')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('yaml')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+datas.append((str(PROJECT_ROOT / 'docs' / 'manual'), 'docs/manual'))
 
 
 a = Analysis(

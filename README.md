@@ -4,7 +4,7 @@
 
 O Codex Model Gate ajuda a preparar uma tarefa, avaliar sua complexidade, escolher um modelo e skills adequados e revisar a decisão antes de iniciar o Codex. Depois da autorização, acompanha a execução e organiza respostas, arquivos e registros em um só lugar.
 
-> Versão atual: **2.6.20** · Aplicativo desktop para **Windows 10/11 x64** · Interface em **English, Português (Brasil) e Español**
+> Versão do código: **2.8.0** · Aplicativo desktop para **Windows 10/11 x64** · Interface em **English, Português (Brasil) e Español**
 
 ## Como funciona
 
@@ -29,12 +29,16 @@ A autorização permanece com a pessoa usuária. A análise do Gate é uma recom
 
 ## Baixar e executar
 
-Baixe a versão atual na seção [Releases](../../releases). Para a versão 2.6.20, estão disponíveis:
+Os instaladores da versão 2.8.0 ficam na seção [Releases](../../releases). Para compilar no próprio computador, use `build_windows.ps1`; a geração local salva os arquivos em `Release`:
 
 - `CodexModelGate-Setup.exe`: instalação por usuário, com atalhos e desinstalador.
 - `CodexModelGate-Pendrive.exe`: versão portátil.
 
 O computador precisa ter o **Codex CLI instalado, autenticado e compatível com o modelo escolhido** para executar tarefas. O Gate pode abrir sem o CLI, mas não consegue executar uma tarefa até que o CLI esteja disponível. Os executáveis incluem o runtime Python e as bibliotecas do aplicativo; a pessoa que recebe o pacote não precisa instalar Python.
+
+O botão **Download / atualização oficial** abre as [instruções oficiais do CLI](https://learn.chatgpt.com/docs/codex/cli); selecione Windows nessa página. O Gate identifica a versão instalada, orienta quando ela é insuficiente e oferece **Consultar novas versões**, uma consulta opcional ao changelog. Sol 6.1 exige CLI 0.159.1 ou posterior. Atualizar o CLI não garante acesso a modelos restritos pelo plano ou workspace.
+
+Na versão 2.7, pacotes incluem anexos ativos, backups incluem pastas externas gerenciadas e restaurações remapeiam os caminhos. Operações de I/O e validação usam trabalhos em segundo plano; o histórico reutiliza conteúdo já carregado. A interface mantém ações visíveis durante a rolagem, adapta controles à largura e oferece copiar/exportar respostas. Veja o [manual atual](docs/manual/pt-BR.md) e o [registro de implementação e verificação](docs/IMPLEMENTACAO-2.7.0.md).
 
 Na edição instalada, os dados do Gate ficam na pasta local de dados do Windows. Na edição portátil, os dados ficam junto ao programa no pendrive. Os registros e arquivos de tarefa podem conter o texto enviado ao Codex e os resultados recebidos; revise e proteja essas pastas como qualquer dado de trabalho.
 
@@ -86,3 +90,7 @@ O Codex Model Gate é distribuído sob a licença [MIT](LICENSE). Os avisos de d
 - [Informações da versão para pendrive](README-PENDRIVE.md)
 
 Os manuais em English, Português (Brasil) e Español também estão disponíveis na aba **Manual** do aplicativo.
+
+## Orquestração inteligente de skills
+
+O botão **Analisar tarefa** usa o CLI autenticado para comparar a tarefa e o conteúdo dos anexos com o catálogo completo de skills. A memória incremental inclui descrições completas e escopo. As escolhas e justificativas aparecem antes da execução e podem ser revistas manualmente. A análise consome tokens, usa sandbox somente leitura e informa falhas ou limitações dos anexos. Consulte `docs/manual/pt-BR.md`. A versão 2.8.0 incorpora a orquestração inteligente nos novos executáveis.

@@ -2,6 +2,10 @@ name: Build and publish Windows release
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - gate_models.py
     tags:
       - "v*"
 
@@ -24,7 +28,17 @@ jobs:
         run: choco install innosetup --yes --no-progress
 
       - name: Install build dependencies
-        run: python -m pip install --upgrade pyinstaller -r requirements.txt
+        run: python -m pip install -r requirements-build.txt -r requirements.txt
+
+      - name: Verify release version and run regression tests
+        shell: powershell
+        run: |
+          $gateVersion = python -c "from gate_models import APP_VERSION; print(APP_VERSION)"
+          $releaseTag = "v$gateVersion"
+          if ("${{ github.ref_type }}" -eq "tag" -and $releaseTag -ne "${{ github.ref_name }}") { throw "Tag does not match APP_VERSION" }
+          "RELEASE_TAG=$releaseTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { throw "Regression tests failed" }
 
       - name: Build installer and portable executable
         run: .\build_windows.ps1 -SkipDependencyInstall -InnoSetupCompiler "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
@@ -43,8 +57,10 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: Codex Model Gate ${{ github.ref_name }}
-          body_path: CHANGELOG.md
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Codex Model Gate ${{ env.RELEASE_TAG }}
+          body_path: docs/releases/${{ env.RELEASE_TAG }}.md
           files: |
             Release/CodexModelGate-Setup.exe
             Release/CodexModelGate-Pendrive.exe

@@ -32,7 +32,7 @@ def select_test_skills(root: Path, task: str) -> list[dict[str, str]]:
     catalog.append({"name": gate.ORCHESTRATOR_SKILL_NAME,
                     "description": "Coordena a seleção de skills", "path": "builtin"})
     with patch.object(gate, "discover_skills", return_value=catalog):
-        return gate.auto_select_skills(root, task, [root])
+        return gate.rule_based_select_skills(root, task, [root])
 
 
 class SkillSelectionTests(unittest.TestCase):
@@ -126,7 +126,7 @@ class SkillSelectionTests(unittest.TestCase):
     def test_cli_compatibility_reuses_checked_version(self):
         with patch.object(gate, "codex_cli_version", side_effect=AssertionError("recheck")):
             self.assertIsNone(gate.cli_model_compatibility_message(
-                "codex", "sol", (0, 156, 1)))
+            "codex", "sol", (0, 159, 1)))
             self.assertIn("Atualize", gate.cli_model_compatibility_message(
                 "codex", "luna", (0, 154, 0)))
 
@@ -206,10 +206,46 @@ class SkillSelectionTests(unittest.TestCase):
             "¿Cuándo comienzan las elecciones en Brasil?",
         ):
             with self.subTest(task=task), patch.object(gate, "discover_skills", return_value=skills):
-                selected = gate.auto_select_skills(Path("."), task)
+                selected = gate.rule_based_select_skills(Path("."), task)
                 self.assertEqual([skill["name"] for skill in selected], [
                     gate.ORCHESTRATOR_SKILL_NAME, "buscar-informacoes-em-fontes-confiaveis"])
                 self.assertIn("fontes confiáveis", selected[1]["match_reasons"])
+
+    def test_election_facts_select_sources_and_enable_live_search(self):
+        skills = [
+            {"name": gate.ORCHESTRATOR_SKILL_NAME, "path": "orchestrator"},
+            {"name": "buscar-informacoes-em-fontes-confiaveis", "path": "sources"},
+            {"name": "super-lyra", "path": "lyra"},
+        ]
+        for task in (
+            "Qual a ordem dos candidatos na eleição daqui de 2026?",
+            "Qual a ordem de votação dos cargos na urna em 2026?",
+            "Quais são os candidatos registrados nas eleições de 2026?",
+            "Onde consultar os resultados da eleição?",
+            "Quais são os números dos candidatos?",
+            "What is the voting order on the ballot in the 2026 elections?",
+            "Who are the registered candidates in the 2026 election?",
+            "¿Cuál es el orden de votación en las elecciones de 2026?",
+            "¿Dónde consultar los resultados electorales?",
+        ):
+            with self.subTest(task=task), patch.object(gate, "discover_skills", return_value=skills):
+                selected = gate.rule_based_select_skills(Path("."), task)
+                self.assertEqual([skill["name"] for skill in selected], [
+                    gate.ORCHESTRATOR_SKILL_NAME, "buscar-informacoes-em-fontes-confiaveis"])
+                self.assertTrue(gate.needs_live_web_search(task, selected))
+                self.assertTrue(gate.needs_live_web_search(task, []))
+
+    def test_election_fact_route_preserves_other_deliverables(self):
+        for task in (
+            "Crie um aplicativo para listar os candidatos na eleição de 2026.",
+            "Desenvolva uma interface com a ordem de votação na urna.",
+            "Busque artigos científicos sobre a ordem dos candidatos nas eleições.",
+            "Write a fictional story about election candidates.",
+            "Crea un póster con los resultados de las elecciones.",
+            "Qual a ordem dos candidatos em um processo seletivo de emprego?",
+        ):
+            with self.subTest(task=task):
+                self.assertFalse(gate.is_election_fact_question(task))
 
     def test_public_date_shortlist_keeps_trusted_sources_and_excludes_generic_skills(self):
         skills = [{"name": f"habilidade-{number}", "description": "Quando usar no Brasil",
@@ -250,7 +286,7 @@ class SkillSelectionTests(unittest.TestCase):
         )
         for task, expected in cases:
             with self.subTest(task=task), patch.object(gate, "discover_skills", return_value=skills):
-                self.assertEqual([skill["name"] for skill in gate.auto_select_skills(Path("."), task)],
+                self.assertEqual([skill["name"] for skill in gate.rule_based_select_skills(Path("."), task)],
                                  [gate.ORCHESTRATOR_SKILL_NAME, *expected])
                 self.assertEqual([skill["name"] for skill in gate.shortlist_skills_for_task(
                     task, skills, limit=4)], [gate.ORCHESTRATOR_SKILL_NAME, *expected])
@@ -267,7 +303,7 @@ class SkillSelectionTests(unittest.TestCase):
                 gate.ensure_orchestrator_skill()
             finally:
                 gate.managed_skills_dir = original
-            self.assertIn("ORCHESTRATOR_V11", path.read_text(encoding="utf-8"))
+            self.assertIn("ORCHESTRATOR_V12", path.read_text(encoding="utf-8"))
 
     def test_skill_memory_reuses_unchanged_profiles_and_refreshes_edits(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -461,7 +497,8 @@ class SkillSelectionTests(unittest.TestCase):
             original = gate.app_data_dir
             gate.app_data_dir = lambda: data
             try:
-                backup = gate.create_data_backup(root / "backup.zip")
+                with patch.object(gate, 'load_app_settings', return_value={}):
+                    backup = gate.create_data_backup(root / "backup.zip")
                 preview = gate.inspect_data_backup(backup)
             finally:
                 gate.app_data_dir = original
@@ -517,7 +554,8 @@ class SkillSelectionTests(unittest.TestCase):
             original = gate.app_data_dir
             try:
                 gate.app_data_dir = lambda: source_data
-                backup = gate.create_data_backup(root / "gate-backup.zip")
+                with patch.object(gate, 'load_app_settings', return_value={}):
+                    backup = gate.create_data_backup(root / "gate-backup.zip")
                 gate.app_data_dir = lambda: target_data
                 result = gate.restore_data_backup(backup)
             finally:
@@ -763,7 +801,7 @@ class CodexContinuationProtocolTests(unittest.TestCase):
     def test_record_model_settings_supports_new_and_older_records(self):
         self.assertEqual(
             gate.record_model_settings({"model_key": "sol", "effort": "medium"}),
-            ("sol", "medium"))
+            ("sol6", "medium"))
         self.assertEqual(
             gate.record_model_settings({"model": "Astra — Extra alto"}),
             ("astra", "xhigh"))

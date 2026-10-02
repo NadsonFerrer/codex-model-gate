@@ -1,6 +1,9 @@
+#ifndef GateVersion
+  #error GateVersion must be supplied by build_windows.ps1
+#endif
 [Setup]
 AppName=Codex Model Gate
-AppVersion=2.6.20
+AppVersion={#GateVersion}
 AppId={{F3BCFCED-762A-4571-BD3B-C2B5D7B1FA44}
 DefaultDirName={localappdata}\Programs\Codex Model Gate
 DefaultGroupName=Codex Model Gate

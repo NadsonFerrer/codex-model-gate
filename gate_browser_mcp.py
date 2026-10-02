@@ -136,8 +136,11 @@ def run_server(workspace: Path | None = None) -> None:
     server = GateBrowserServer(workspace or Path.cwd())
     try:
         for line in sys.stdin:
+            request_id = None
             try:
                 request = json.loads(line)
+                if not isinstance(request, dict):
+                    raise ValueError('A requisição MCP precisa ser um objeto.')
                 method = request.get("method")
                 request_id = request.get("id")
                 if method == "initialize":
