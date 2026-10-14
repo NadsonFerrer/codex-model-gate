@@ -16,11 +16,21 @@ O Codex Model Gate ajuda a preparar uma tarefa, avaliar sua complexidade, escolh
 
 A autorização permanece com a pessoa usuária. A análise do Gate é uma recomendação e não garante que o modelo vá acertar ou que a tarefa será concluída.
 
+## Novidades da versão 2.8.1
+
+- O navegador visual fica disponível automaticamente quando a tarefa pede pesquisa na web, inclui uma URL ou solicita acesso a um site.
+- É possível abrir páginas HTTP/HTTPS diretamente, seguir links e ler texto de quadros incorporados.
+- Os registros incluem diagnósticos do navegador para ajudar a distinguir uma falha da ferramenta de um site indisponível.
+- A versão corrige a inicialização do navegador no executável Windows e exige uma interface gráfica Tcl/Tk funcional durante o empacotamento.
+- Os manuais foram atualizados em inglês, português e espanhol.
+
+Veja o [histórico de versões](CHANGELOG.md), a [nota de lançamento da 2.8.1](docs/releases/v2.8.1.md) ou [baixe os executáveis](https://github.com/NadsonFerrer/codex-model-gate/releases/tag/v2.8.1). A validação automatizada e do navegador empacotado está descrita na nota de lançamento; instalação em máquina limpa e tarefa real via CLI não foram validadas nesta publicação.
+
 ## O que o programa oferece
 
 - **Seleção de modelo por complexidade:** recomenda os modelos GPT-6 Luna, Sol e Astra conforme o tipo e a complexidade da entrega. Modelos legados continuam como opção manual secundária.
 - **Skills:** consulta as skills disponíveis, sugere as que correspondem ao resultado pedido ou permite escolhê-las manualmente.
-- **Pesquisa atual:** pode habilitar a busca web ao vivo do Codex para tarefas que dependem de informações atuais. Há também um navegador visual Edge opcional.
+- **Pesquisa atual:** pode habilitar a busca web ao vivo do Codex para tarefas que dependem de informações atuais. O navegador visual Edge fica disponível automaticamente quando a tarefa inclui uma URL ou pede acesso a sites.
 - **Fontes citadas:** as instruções do Gate pedem ao Codex para abrir a fonte original e conferir se ela sustenta a afirmação. Se a página não estiver acessível, o Codex deve informar a limitação. Essa instrução não é uma validação automática independente do conteúdo da página.
 - **Histórico e arquivos:** guarda registros, organiza os resultados por tarefa e oferece busca, filtros e exportações.
 - **Consumo estimado:** reúne os tokens de entrada, cache, saída e raciocínio reportados pelo CLI e estima custos. Os valores não são faturas e podem não estar disponíveis para toda execução.
