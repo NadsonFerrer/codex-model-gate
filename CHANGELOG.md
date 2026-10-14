@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 2.8.1 — 2 de outubro de 2026
+
+- Navegador MCP disponível automaticamente em consultas web e continuações com URLs ou pedidos de acesso a sites.
+- Abertura direta de URLs HTTP/HTTPS, navegação por links e leitura de quadros incorporados, inclusive no site NanoMaPE.
+- Diagnósticos com canal, resultado HTTP e código de erro de rede incluídos no registro da tarefa; falha de ferramenta não é tratada como prova de site indisponível.
+- Inicialização obrigatória do MCP quando habilitado e restauração dos pipes STDIO no executável gráfico do Windows.
+- Empacotamento exige interface Tcl/Tk funcional e impede geração silenciosa de pacote sem Tk.
+
 ## 2.8.0 — 1 de outubro de 2026
 
 - A seleção automática usa IA para analisar a tarefa, os anexos e todas as competências instaladas, sem rotas temáticas fixas.

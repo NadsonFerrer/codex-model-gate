@@ -906,7 +906,7 @@ class CodexContinuationProtocolTests(unittest.TestCase):
         self.assertIn("--mcp-browser-server", joined)
         self.assertIn("mcp_servers.gate_browser.cwd", joined)
         self.assertIn("default_tools_approval_mode=\"approve\"", joined)
-        self.assertIn("mcp_servers.gate_browser.required=false", joined)
+        self.assertIn("mcp_servers.gate_browser.required=true", joined)
         self.assertNotIn(
             "mcp_servers.gate_browser",
             "\n".join(gate.build_codex_exec_command(
@@ -929,7 +929,7 @@ class CodexContinuationProtocolTests(unittest.TestCase):
         names = {item["name"] for item in responses[1]["result"]["tools"]}
         self.assertEqual(names, {
             "gate_browser_search", "gate_browser_open",
-            "gate_browser_snapshot", "gate_browser_close"})
+            "gate_browser_follow_link", "gate_browser_snapshot", "gate_browser_close"})
 
 
 class ManualSkillInstallationTests(unittest.TestCase):

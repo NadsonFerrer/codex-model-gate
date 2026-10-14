@@ -124,7 +124,7 @@ if ($pythonBits -ne "64") {
 
 # The finished EXEs contain Python, Tcl/Tk and document-validation libraries.
 # Python is required only on the developer build machine, never on the recipient's computer.
-Invoke-Python -Arguments @("-c", "import tkinter as tk; tk.Tcl(); print('Tcl/Tk validado')") | Write-Host
+Invoke-Python -Arguments @("-c", "import tkinter as tk; w=tk.Tk(); w.withdraw(); w.update_idletasks(); w.destroy(); print('Tcl/Tk e interface validados')") | Write-Host
 if (-not $SkipDependencyInstall) {
   Invoke-Python -Arguments @("-m", "pip", "install", "-r", (Join-Path $ProjectRoot "requirements-build.txt"), "-r", (Join-Path $ProjectRoot "requirements.txt")) | Write-Host
 }

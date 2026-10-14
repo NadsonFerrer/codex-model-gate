@@ -1,5 +1,9 @@
 # Codex Model Gate — versão instalada no computador
 
+## Versão 2.8.1 — 02/10/2026
+
+Consulta de sites com abertura direta, navegação por links e leitura de iframes. Diagnósticos do navegador integram o registro da tarefa. Tcl/Tk é validado antes do empacotamento.
+
 ## Versão 2.6.20 — instalador gerado em 24/09/2026
 
 Na aba Tarefas anteriores, filtros e comandos ficam alinhados, a lista e os detalhes recebem alturas iguais, e as dez ações permanecem acessíveis em três botões e três menus. O campo de termos do Edge agora explica que sugere buscas ao Codex e não abre links diretamente. O manual descreve esse comportamento em português, inglês e espanhol.

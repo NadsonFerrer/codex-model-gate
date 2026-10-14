@@ -4,7 +4,7 @@
 
 O Codex Model Gate ajuda a preparar uma tarefa, avaliar sua complexidade, escolher um modelo e skills adequados e revisar a decisão antes de iniciar o Codex. Depois da autorização, acompanha a execução e organiza respostas, arquivos e registros em um só lugar.
 
-> Versão do código: **2.8.0** · Aplicativo desktop para **Windows 10/11 x64** · Interface em **English, Português (Brasil) e Español**
+> Versão do código: **2.8.1** · Aplicativo desktop para **Windows 10/11 x64** · Interface em **English, Português (Brasil) e Español**
 
 ## Como funciona
 
@@ -29,7 +29,7 @@ A autorização permanece com a pessoa usuária. A análise do Gate é uma recom
 
 ## Baixar e executar
 
-Os instaladores da versão 2.8.0 ficam na seção [Releases](../../releases). Para compilar no próprio computador, use `build_windows.ps1`; a geração local salva os arquivos em `Release`:
+Os instaladores publicados ficam na seção [Releases](../../releases). Para compilar a versão 2.8.1 no próprio computador, use `build_windows.ps1`; a geração local salva os arquivos em `Release`:
 
 - `CodexModelGate-Setup.exe`: instalação por usuário, com atalhos e desinstalador.
 - `CodexModelGate-Pendrive.exe`: versão portátil.

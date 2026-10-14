@@ -1,7 +1,31 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
+import tkinter as tk
+
+# Do not silently publish a GUI executable when PyInstaller cannot collect Tk.
+try:
+    window = tk.Tk()
+    window.withdraw()
+    window.update_idletasks()
+    window.destroy()
+except tk.TclError as exc:
+    raise RuntimeError('Tcl/Tk indisponível no ambiente de build; valide a interface antes de empacotar.') from exc
 
 from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.win32.versioninfo import FixedFileInfo, StringFileInfo, StringTable, StringStruct, VarFileInfo, VarStruct, VSVersionInfo
+from gate_models import APP_VERSION
+
+version_numbers = tuple(int(part) for part in APP_VERSION.split('.')) + (0,)
+version_info = VSVersionInfo(
+    ffi=FixedFileInfo(filevers=version_numbers, prodvers=version_numbers,
+                     mask=0x3f, flags=0, OS=0x40004, fileType=1, subtype=0, date=(0, 0)),
+    kids=[StringFileInfo([StringTable('040904B0', [
+        StringStruct('FileDescription', 'Codex Model Gate'),
+        StringStruct('FileVersion', APP_VERSION),
+        StringStruct('ProductName', 'Codex Model Gate'),
+        StringStruct('ProductVersion', APP_VERSION),
+        StringStruct('OriginalFilename', 'CodexModelGate.exe')])]),
+        VarFileInfo([VarStruct('Translation', [1033, 1200])])])
 
 PROJECT_ROOT = Path(SPECPATH)
 APP_ICON = PROJECT_ROOT / "assets" / "CodexModelGate.ico"
@@ -51,6 +75,7 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
+    version=version_info,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

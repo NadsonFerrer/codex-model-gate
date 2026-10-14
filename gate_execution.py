@@ -32,7 +32,7 @@ def prepare_task(config: AuthorizedTask, skills, executable, cancelled):
     fingerprints = g.skill_fingerprints(skills)
     instructions = g.selected_skill_instructions(skills)
     command = g.build_codex_exec_command(g.MODELS[config.model], config.effort,
-                    workspace if config.browser else None, config.live_web, executable)
+                    workspace if config.browser or config.live_web else None, config.live_web, executable)
     if cancelled.is_set():
         raise InterruptedError('Preparação cancelada; arquivos parciais preservados.')
     return workspace, staged, fingerprints, instructions, command, g.snapshot_project_files(workspace)

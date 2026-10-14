@@ -1,7 +1,7 @@
 """Versioned model capabilities. Catalog support does not imply account access."""
 from __future__ import annotations
 
-APP_VERSION = '2.8.0'
+APP_VERSION = '2.8.1'
 CLI_DOWNLOAD_URL = 'https://learn.chatgpt.com/docs/codex/cli'
 CLI_CHANGELOG_URL = 'https://learn.chatgpt.com/docs/changelog'
 CATALOG_CHECKED_AT = '2026-10-01'

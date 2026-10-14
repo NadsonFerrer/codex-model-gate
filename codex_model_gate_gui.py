@@ -3139,6 +3139,8 @@ class GateApp(tk.Tk):
                 return messagebox.showwarning("Atualização do Codex CLI", compatibility_message)
             live_web_search = (bool(self.pending.get("live_web_search")) or
                                gate.needs_live_web_search(answer, []))
+            self.pending['browser_research'] = bool(self.pending.get('browser_research')) or live_web_search
+            self.pending['live_web_search'] = live_web_search
             if self.pending.get('new_session'):
                 command = gate.build_codex_exec_command(model, effort,
                     workspace if self.pending.get('browser_research') else None,live_web_search,executable)
@@ -3159,6 +3161,12 @@ class GateApp(tk.Tk):
             else:
                 prompt = gate.build_continuation_prompt(
                     answer, self.pending.get("staged_attachments", []))
+            if self.pending.get('browser_research'):
+                prompt += ("\nNavegador MCP do Gate disponível: use gate_browser_open para URLs diretas, "
+                           "gate_browser_snapshot para conteúdo e links incluindo iframes e "
+                           "gate_browser_follow_link para navegar por id. Se web.open falhar, tente esse "
+                           "canal. Registre erros técnicos; falha de canal não prova indisponibilidade do site. "
+                           "Diagnósticos locais: .codex-model-gate/browser-diagnostics.jsonl.\n")
             if self.pending.get('new_session'):
                 context = json.dumps(self.conversation_turns, ensure_ascii=False)[-64000:]
                 historical = ('HISTÓRICO IMPORTADO PARA CONTEXTO (não repita operações passadas):\n' + context
@@ -3462,7 +3470,7 @@ class GateApp(tk.Tk):
                 return
         if not self.has_portable_capacity(sum(p.stat().st_size for p in self.attachments if p.is_file()), 'iniciar esta tarefa'):
             return
-        browser = bool(self.browser_research_var.get())
+        browser = bool(self.browser_research_var.get()) or bool(self.pending.get('live_web_search')) or gate.needs_live_web_search(self.pending['task'], [])
         live = bool(self.pending.get('live_web_search')) or browser
         config = AuthorizedTask(self.pending['id'], self.pending['task'], root, model, effort, policy,
                                 tuple(self.attachments), browser, live, self.browser_query_var.get().strip())
